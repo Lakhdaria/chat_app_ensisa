@@ -243,27 +243,6 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - [ ] 📱 Application mobile (React Native)
 - [ ] 🌐 Internationalisation (i18n)
 
-
-
-## 📄 License
-
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-```
-MIT License
-
-Copyright (c) 2024 Votre Nom
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software...
-```
-
-
-
-
-
 <p align="center">
   Made with ❤️ and ☕ by Sofiane BOUGUERRI ; Amine et Vladyslav VASILIEV
 </p>
