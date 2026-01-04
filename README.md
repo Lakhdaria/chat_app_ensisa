@@ -201,28 +201,6 @@ fetch('/api/salon/1/envoyer/', {
 });
 ```
 
----
-
-## 🎨 Screenshots
-
-<details>
-<summary>📱 Voir les captures d'écran</summary>
-
-### Page d'accueil
-![Home](https://via.placeholder.com/600x400/f0f2f5/333333?text=Page+Accueil)
-
-### Salon de discussion
-![Chat](https://via.placeholder.com/600x400/667eea/ffffff?text=Salon+Chat)
-
-### Message vocal
-![Voice](https://via.placeholder.com/600x400/764ba2/ffffff?text=Message+Vocal)
-
-### Panel de modération
-![Moderation](https://via.placeholder.com/600x400/dc3545/ffffff?text=Moderation)
-
-</details>
-
----
 
 ## 🧪 Tests
 ```bash
@@ -265,22 +243,7 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - [ ] 📱 Application mobile (React Native)
 - [ ] 🌐 Internationalisation (i18n)
 
----
 
-## ⚠️ Problèmes connus
-
-<details>
-<summary>Voir les problèmes connus</summary>
-
-| Problème | Solution |
-|----------|----------|
-| Audio ne fonctionne pas sur Safari | Utiliser Chrome ou Firefox |
-| Messages vocaux longs > 60s | Limitation volontaire |
-| Polling consomme de la bande passante | Migration vers WebSockets prévue |
-
-</details>
-
----
 
 ## 📄 License
 
@@ -297,29 +260,12 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software...
 ```
 
----
 
-## 👨‍💻 Auteur
 
-**Votre Nom**
 
-- GitHub: [@votre-username](https://github.com/votre-username)
-- LinkedIn: [Votre Nom](https://linkedin.com/in/votre-profil)
-- Email: votre.email@example.com
-
----
-
-## 🙏 Remerciements
-
-- [Django Documentation](https://docs.djangoproject.com/)
-- [Bootstrap](https://getbootstrap.com/)
-- [Bootstrap Icons](https://icons.getbootstrap.com/)
-- [jQuery](https://jquery.com/)
-
----
 
 <p align="center">
-  Made with ❤️ and ☕ by <a href="https://github.com/votre-username">Votre Nom</a>
+  Made with ❤️ and ☕ by <a href="https://github.com/votre-username"> Sofiane BOUGUERRI ; Amine et Vladyslav VASILIEV</a>
 </p>
 
 <p align="center">
@@ -337,27 +283,3 @@ python-dotenv>=1.0
 ```
 
 ---
-
-### Fichier `LICENSE` à créer :
-```
-MIT License
-
-Copyright (c) 2024 Votre Nom
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
