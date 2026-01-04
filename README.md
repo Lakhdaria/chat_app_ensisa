@@ -265,13 +265,13 @@ copies of the Software...
 
 
 <p align="center">
-  Made with ❤️ and ☕ by <a href="https://github.com/votre-username"> Sofiane BOUGUERRI ; Amine et Vladyslav VASILIEV</a>
+  Made with ❤️ and ☕ by Sofiane BOUGUERRI ; Amine et Vladyslav VASILIEV
 </p>
 
 <p align="center">
   <a href="#-django-chat-application">⬆️ Retour en haut</a>
 </p>
-```
+
 
 ---
 
