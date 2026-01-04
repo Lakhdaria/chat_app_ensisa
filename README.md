@@ -244,7 +244,7 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - [ ] 🌐 Internationalisation (i18n)
 
 <p align="center">
-  Made with ❤️ and ☕ by Sofiane BOUGUERRI ; Amine et Vladyslav VASILIEV
+  Made with ❤️ and ☕ by Sofiane BOUGUERRI ; Amine EL AZHARI et Vladyslav VASILIEV
 </p>
 
 <p align="center">
