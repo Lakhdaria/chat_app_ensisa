@@ -1,402 +1,127 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block title %}{{ salon.nom }}{% endblock %}
-
-{% block extra_css %}
-<style>
-    :root {
-        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --chat-bg: linear-gradient(180deg, #f0f2f5 0%, #e9ebee 100%);
-    }
-    
-    .chat-wrapper { height: calc(100vh - 140px); min-height: 500px; }
-    .chat-container { height: 100%; overflow-y: auto; background: var(--chat-bg); }
-    
-    .message {
-        padding: 10px 14px;
-        margin: 6px 10px;
-        background: #fff;
-        border-radius: 18px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        animation: slideIn 0.2s ease;
-        max-width: 80%;
-    }
-    
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .message-own {
-        background: linear-gradient(135deg, #dcf8c6 0%, #d4f4bd 100%);
-        margin-left: auto;
-    }
-    
-    .message:not(.message-own) { margin-right: auto; }
-    .message-temp { opacity: 0.7; }
-    .message-error { background: #ffebee; }
-    .message-author { font-weight: 600; color: #667eea; font-size: 0.8rem; }
-    .message-own .message-author { color: #128c7e; }
-    .message-time { font-size: 0.65rem; color: #999; }
-    .message-content { font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; }
-    .btn-delete-msg { opacity: 0; transition: opacity 0.2s; }
-    .message:hover .btn-delete-msg { opacity: 1; }
-    
-    .audio-message {
-        background: rgba(102,126,234,0.1);
-        padding: 8px 12px;
-        border-radius: 12px;
-        margin-top: 6px;
-    }
-    
-    .audio-progress-bar {
-        width: 100%;
-        height: 4px;
-        background: rgba(102,126,234,0.2);
-        border-radius: 2px;
-    }
-    
-    .audio-progress {
-        height: 100%;
-        background: var(--primary-gradient);
-        border-radius: 2px;
-        width: 0%;
-        transition: width 0.1s;
-    }
-    
-    .btn-play-audio {
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-        flex-shrink: 0;
-    }
-    
-    .sidebar-card { border: none; border-radius: 12px; }
-    .members-card { max-height: 40vh; overflow-y: auto; }
-    .member-item { border: none; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; padding: 8px 12px; }
-    .member-item:hover { background: #f8f9fa; }
-    
-    .chat-input-container { background: #fff; border-top: 1px solid #e9ecef; padding: 10px; }
-    .input-wrapper { background: #f0f2f5; border-radius: 24px; padding: 4px 8px; }
-    .input-wrapper .form-control { border: none; background: transparent; padding: 8px 12px; font-size: 0.9rem; }
-    .input-wrapper .form-control:focus { box-shadow: none; }
-    
-    .btn-input {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        border-radius: 50%;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-        flex-shrink: 0;
-    }
-    
-    .emoji-picker-wrapper { position: relative; }
-    #emoji-picker {
-        position: absolute;
-        bottom: 100%;
-        left: 0;
-        width: 280px;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-        display: none;
-        z-index: 1000;
-        margin-bottom: 8px;
-    }
-    #emoji-picker.show { display: block; }
-    .emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-    .emoji-item { font-size: 1.2rem; padding: 4px; text-align: center; cursor: pointer; border-radius: 6px; }
-    .emoji-item:hover { background: #e9ecef; transform: scale(1.15); }
-    
-    .recording-indicator {
-        width: 14px;
-        height: 14px;
-        background: #dc3545;
-        border-radius: 50%;
-        animation: pulse 1s infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
-    }
-    
-    #toast-container { position: fixed; top: 70px; right: 15px; z-index: 1050; }
-    
-    .sidebar-mobile {
-        position: fixed;
-        top: 0;
-        right: -280px;
-        width: 280px;
-        height: 100vh;
-        background: #fff;
-        z-index: 1040;
-        transition: right 0.3s;
-        padding: 15px;
-        overflow-y: auto;
-    }
-    .sidebar-mobile.show { right: 0; box-shadow: -3px 0 15px rgba(0,0,0,0.1); }
-    .sidebar-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.4);
-        z-index: 1035;
-        display: none;
-    }
-    .sidebar-overlay.show { display: block; }
-    
-    @media (max-width: 768px) {
-        .chat-wrapper { height: calc(100vh - 110px); }
-        .message { max-width: 90%; padding: 8px 12px; margin: 4px 8px; }
-        #emoji-picker { width: 260px; left: -30px; }
-    }
-    
-    @media (max-width: 576px) {
-        .btn-input { width: 36px; height: 36px; min-width: 36px; }
-        .message { font-size: 0.85rem; }
-    }
-    .audio-message audio {
-    display: none;
-}
-
-.audio-progress-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(102,126,234,0.2);
-    border-radius: 3px;
-    cursor: pointer;
-}
-
-.audio-progress {
-    height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 3px;
-    width: 0%;
-    transition: width 0.1s linear;
-}
-</style>
-{% endblock %}
-
-{% block content %}
-<div id="toast-container"></div>
-<div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-<div class="row g-2 chat-wrapper">
-    <div class="col-lg-9 col-md-8 col-12 d-flex flex-column h-100">
-        <div class="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden" style="border-radius: 16px;">
-            <!-- Header -->
-            <div class="card-header py-2 px-3 border-0" style="background: var(--primary-gradient);">
-                <div class="d-flex justify-content-between align-items-center text-white">
+                {% endif %}
+            </div>
+            <div class="members-list">
+                {% for membre in membres %}
+                <div class="member-item d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2">
-                        {% if salon.est_prive %}<i class="bi bi-lock-fill"></i>{% else %}<i class="bi bi-chat-dots-fill"></i>{% endif %}
+                        <i class="bi bi-person-circle text-primary"></i>
                         <div>
-                            <h6 class="mb-0 fw-bold">{{ salon.nom }}</h6>
-                            <small class="opacity-75 d-none d-sm-block" style="font-size: 0.7rem;">{{ membres.count }} membre{{ membres.count|pluralize }}</small>
+                            <div class="small fw-semibold">{{ membre.user.username }}</div>
+                            {% if membre.user == salon.createur %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i></span>
+                            {% elif membre.role == 'admin' %}
+                                <span class="badge bg-danger"><i class="bi bi-shield-fill"></i></span>
+                            {% elif membre.role == 'moderateur' %}
+                                <span class="badge bg-info"><i class="bi bi-shield"></i></span>
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="d-flex gap-1">
-                        <button class="btn btn-light btn-sm d-md-none" id="btn-show-sidebar"><i class="bi bi-people-fill"></i></button>
-                        {% if membership and salon.createur != request.user %}
-                        <a href="{% url 'quitter_salon' salon.id %}" class="btn btn-outline-light btn-sm d-none d-sm-inline-flex"><i class="bi bi-box-arrow-left"></i></a>
-                        {% endif %}
-                        <a href="{% url 'home' %}" class="btn btn-light btn-sm"><i class="bi bi-house-fill"></i></a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Messages -->
-            <div class="chat-container flex-grow-1" id="chat-messages" 
-                 data-salon-id="{{ salon.id }}" 
-                 data-user-id="{{ request.user.id }}"
-                 data-username="{{ request.user.username }}"
-                 data-is-modo="{{ is_modo }}"
-                 data-is-admin="{{ is_admin }}">
-                {% for msg in messages_salon %}
-                <div class="message {% if msg.auteur == request.user %}message-own{% endif %}" data-id="{{ msg.id }}">
-                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                        <span class="message-author"><i class="bi bi-person-fill me-1"></i>{{ msg.auteur.username }}</span>
-                        <span class="message-time">
-                            {{ msg.date_envoi|date:"H:i" }}
-                            {% if msg.auteur == request.user or is_modo %}
-                            <button class="btn btn-link btn-sm text-danger p-0 ms-1 btn-delete-msg" data-msg-id="{{ msg.id }}"><i class="bi bi-trash"></i></button>
+                    {% if is_admin and membre.user != request.user and membre.user != salon.createur %}
+                    <div class="dropdown">
+                        <button class="btn btn-link btn-sm p-0" style="color: var(--text-muted);" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="membre"><i class="bi bi-person me-2"></i>Membre</a></li>
+                            <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="moderateur"><i class="bi bi-shield me-2"></i>Modérateur</a></li>
+                            <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="admin"><i class="bi bi-shield-fill me-2"></i>Admin</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% if membre.est_banni %}
+                            <li><a class="dropdown-item small text-success btn-unban" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-check-circle me-2"></i>Débannir</a></li>
+                            {% else %}
+                            <li><a class="dropdown-item small text-warning btn-ban" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-slash-circle me-2"></i>Bannir</a></li>
                             {% endif %}
-                        </span>
+                            <li><a class="dropdown-item small text-danger btn-kick" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-box-arrow-right me-2"></i>Expulser</a></li>
+                        </ul>
                     </div>
-                    {% if msg.type_message == 'audio' %}
-                    <div class="audio-message d-flex align-items-center gap-2">
-                        <button class="btn btn-primary btn-sm rounded-circle btn-play-audio" data-audio-url="{{ msg.fichier_audio.url }}"><i class="bi bi-play-fill"></i></button>
-                        <div class="flex-grow-1"><div class="audio-progress-bar"><div class="audio-progress"></div></div></div>
-                        <small class="text-muted">{{ msg.duree_audio|floatformat:0 }}s</small>
-                        <audio class="d-none" src="{{ msg.fichier_audio.url }}" preload="metadata"></audio>
-                    </div>
-                    {% else %}
-                    <div class="message-content">{{ msg.contenu }}</div>
                     {% endif %}
-                </div>
-                {% empty %}
-                <div class="text-center text-muted py-5" id="no-messages">
-                    <i class="bi bi-chat-text display-1 opacity-25"></i>
-                    <p class="mt-2 mb-0">Aucun message</p>
-                    <small>Commencez la conversation !</small>
                 </div>
                 {% endfor %}
             </div>
-            
-            <!-- Input -->
-            <div class="chat-input-container">
-                <form id="message-form">
-                    {% csrf_token %}
-                    <div class="input-wrapper d-flex align-items-center gap-1">
-                        <div class="emoji-picker-wrapper">
-                            <button type="button" class="btn btn-input btn-light" id="emoji-btn" title="Emojis">😊</button>
-                            <div id="emoji-picker"></div>
-                        </div>
-                        <button type="button" class="btn btn-input btn-light text-primary" id="voice-btn" title="Message vocal">
-                            <i class="bi bi-mic-fill"></i>
-                        </button>
-                        <input type="text" id="message-input" class="form-control" placeholder="Écrire un message..." autocomplete="off" required>
-                        <button type="submit" class="btn btn-input btn-primary" id="send-btn" title="Envoyer">
-                            <i class="bi bi-send-fill"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
         </div>
-    </div>
-    
-    <!-- Sidebar Desktop -->
-    <div class="col-lg-3 col-md-4 d-none d-md-flex flex-column gap-2">
-        <div class="card sidebar-card shadow-sm flex-grow-1">
-            <div class="card-header bg-secondary text-white py-2 d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
-                <span class="small fw-bold"><i class="bi bi-people-fill me-1"></i> Membres ({{ membres.count }})</span>
-                {% if is_admin %}
-                <button class="btn btn-light btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#inviteModal" title="Inviter"><i class="bi bi-person-plus-fill"></i></button>
-                {% endif %}
-            </div>
-            <div class="card-body p-0 members-card">
-                <ul class="list-group list-group-flush" id="membres-liste">
-                    {% for membre in membres %}
-                    <li class="list-group-item member-item d-flex align-items-center justify-content-between {% if membre.est_banni %}opacity-50{% endif %}">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-person-circle text-primary"></i>
-                            <div>
-                                <div class="fw-semibold small">{{ membre.user.username }}</div>
-                                {% if membre.user == salon.createur %}
-                                <span class="badge bg-warning text-dark" style="font-size:0.6rem"><i class="bi bi-star-fill"></i></span>
-                                {% elif membre.role == 'admin' %}
-                                <span class="badge bg-danger" style="font-size:0.6rem"><i class="bi bi-shield-fill"></i></span>
-                                {% elif membre.role == 'moderateur' %}
-                                <span class="badge bg-info" style="font-size:0.6rem"><i class="bi bi-shield"></i></span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% if is_admin and membre.user != request.user and membre.user != salon.createur %}
-                        <div class="dropdown">
-                            <button class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow">
-                                <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="membre"><i class="bi bi-person me-2"></i>Membre</a></li>
-                                <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="moderateur"><i class="bi bi-shield me-2"></i>Modérateur</a></li>
-                                <li><a class="dropdown-item small btn-role" href="#" data-user-id="{{ membre.user.id }}" data-role="admin"><i class="bi bi-shield-fill me-2"></i>Admin</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                {% if membre.est_banni %}
-                                <li><a class="dropdown-item small text-success btn-unban" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-check-circle me-2"></i>Débannir</a></li>
-                                {% else %}
-                                <li><a class="dropdown-item small text-warning btn-ban" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-slash-circle me-2"></i>Bannir</a></li>
-                                {% endif %}
-                                <li><a class="dropdown-item small text-danger btn-kick" href="#" data-user-id="{{ membre.user.id }}"><i class="bi bi-box-arrow-right me-2"></i>Expulser</a></li>
-                            </ul>
-                        </div>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        
-        <div class="card sidebar-card shadow-sm">
-            <div class="card-body py-2 text-center">
-                <i class="bi bi-circle-fill text-success" id="connection-status-icon" style="font-size:0.5rem"></i>
-                <small class="text-muted ms-1" id="refresh-status">Connecté</small>
-            </div>
+        <div class="connection-status">
+            <i class="bi bi-circle-fill text-success" id="connection-status-icon" style="font-size: 0.5rem;"></i>
+            <small style="color: var(--text-muted);" class="ms-2" id="refresh-status">Connecté</small>
         </div>
     </div>
 </div>
 
-<!-- Sidebar Mobile -->
 <div class="sidebar-mobile" id="sidebar-mobile">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2"></i>Membres</h6>
-        <button class="btn btn-light btn-sm" id="btn-close-sidebar"><i class="bi bi-x-lg"></i></button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h6 class="mb-0" style="color: var(--text-primary);"><i class="bi bi-people-fill me-2"></i>Membres</h6>
+        <button class="btn btn-outline-secondary btn-sm" id="btn-close-sidebar"><i class="bi bi-x-lg"></i></button>
     </div>
-    {% if is_admin %}
-    <button class="btn btn-primary btn-sm w-100 mb-3" data-bs-toggle="modal" data-bs-target="#inviteModal"><i class="bi bi-person-plus me-1"></i>Inviter</button>
-    {% endif %}
-    <ul class="list-group list-group-flush">
+    <div class="list-group list-group-flush">
         {% for membre in membres %}
-        <li class="list-group-item px-0 py-2 d-flex align-items-center gap-2 border-0 border-bottom">
+        <div class="list-group-item d-flex align-items-center gap-2 px-0" style="background: transparent; color: var(--text-secondary); border-color: var(--border-color);">
             <i class="bi bi-person-circle text-primary"></i>
-            <span class="small">{{ membre.user.username }}</span>
-            {% if membre.user == salon.createur %}<span class="badge bg-warning text-dark" style="font-size:0.55rem"><i class="bi bi-star-fill"></i></span>{% endif %}
-        </li>
+            <span>{{ membre.user.username }}</span>
+            {% if membre.user == salon.createur %}
+                <span class="badge bg-warning text-dark ms-auto"><i class="bi bi-star-fill"></i></span>
+            {% endif %}
+        </div>
         {% endfor %}
-    </ul>
+    </div>
 </div>
 
-<!-- Modal Invitation -->
 <div class="modal fade" id="inviteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h6 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Inviter</h6>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Inviter</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="text" class="form-control" id="invite-username" placeholder="Nom d'utilisateur">
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-invite-confirm"><i class="bi bi-send me-1"></i>Inviter</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="btn-invite-confirm"><i class="bi bi-send me-2"></i>Inviter</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Enregistrement Vocal -->
 <div class="modal fade" id="voiceModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h6 class="modal-title fw-bold"><i class="bi bi-mic-fill me-2 text-danger"></i>Message vocal</h6>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-mic-fill me-2 text-danger"></i>Message vocal</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
                 <div id="recording-status" class="d-none mb-3">
                     <div class="recording-indicator mx-auto mb-2"></div>
-                    <span class="text-danger fw-bold fs-4" id="recording-time">0:00</span>
+                    <span class="text-danger fw-bold fs-3" id="recording-time">0:00</span>
                 </div>
-                <button class="btn btn-danger btn-lg rounded-circle shadow" id="btn-start-recording" style="width:80px;height:80px;">
-                    <i class="bi bi-mic-fill fs-3"></i>
+                <button class="btn btn-danger btn-lg rounded-circle" id="btn-start-recording" style="width: 70px; height: 70px;">
+                    <i class="bi bi-mic-fill fs-4"></i>
                 </button>
-                <button class="btn btn-success btn-lg rounded-circle shadow d-none" id="btn-stop-recording" style="width:80px;height:80px;">
-                    <i class="bi bi-send-fill fs-3"></i>
+                <button class="btn btn-success btn-lg rounded-circle d-none" id="btn-stop-recording" style="width: 70px; height: 70px;">
+                    <i class="bi bi-send-fill fs-4"></i>
                 </button>
-                <p class="text-muted small mt-3 mb-0" id="voice-instruction">Appuyez pour enregistrer</p>
             </div>
-            <div class="modal-footer border-0 pt-0 justify-content-center">
+            <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cancel-recording" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cameraModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-camera-fill me-2 text-primary"></i>Prendre une photo</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <video id="camera-video" autoplay playsinline style="width: 100%;"></video>
+                <canvas id="camera-canvas" style="display: none;"></canvas>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="btn-take-photo"><i class="bi bi-camera me-2"></i>Capturer</button>
             </div>
         </div>
     </div>
@@ -406,7 +131,18 @@
 {% block extra_js %}
 <script src="{% static 'js/chat.js' %}"></script>
 <script>
-    $('#btn-show-sidebar').on('click', function() { $('#sidebar-mobile, #sidebar-overlay').addClass('show'); });
-    $('#btn-close-sidebar, #sidebar-overlay').on('click', function() { $('#sidebar-mobile, #sidebar-overlay').removeClass('show'); });
+$('#btn-show-sidebar').on('click', function() {
+    $('#sidebar-mobile, #sidebar-overlay').addClass('show');
+});
+$('#btn-close-sidebar, #sidebar-overlay').on('click', function() {
+    $('#sidebar-mobile, #sidebar-overlay').removeClass('show');
+});
+function openImageModal(src) {
+    $('#modal-image').attr('src', src);
+    $('#image-modal').addClass('show');
+}
+$('#image-modal').on('click', function() {
+    $(this).removeClass('show');
+});
 </script>
 {% endblock %}

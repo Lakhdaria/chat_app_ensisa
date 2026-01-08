@@ -8,6 +8,11 @@ def audio_upload_path(instance, filename):
     return f'audio/salon_{instance.salon.id}/{filename}'
 
 
+def image_upload_path(instance, filename):
+    """Chemin d'upload pour les images"""
+    return f'images/salon_{instance.salon.id}/{filename}'
+
+
 class Salon(models.Model):
     """Salon de discussion"""
     nom = models.CharField(max_length=100, unique=True)
@@ -23,6 +28,21 @@ class Salon(models.Model):
 
     def __str__(self):
         return self.nom
+
+
+class SalonMasque(models.Model):
+    """Salons masqués par l'utilisateur"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='salons_masques')
+    salon = models.ForeignKey(Salon, on_delete=models.CASCADE, related_name='masque_par')
+    date_masque = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'salon']
+        verbose_name = 'Salon masqué'
+        verbose_name_plural = 'Salons masqués'
+
+    def __str__(self):
+        return f"{self.user.username} a masqué {self.salon.nom}"
 
 
 class Membership(models.Model):
@@ -53,12 +73,14 @@ class Message(models.Model):
     TYPE_CHOICES = [
         ('text', 'Texte'),
         ('audio', 'Audio'),
+        ('image', 'Image'),
     ]
     
     contenu = models.TextField(blank=True, null=True)
     type_message = models.CharField(max_length=10, choices=TYPE_CHOICES, default='text')
     fichier_audio = models.FileField(upload_to=audio_upload_path, blank=True, null=True)
     duree_audio = models.FloatField(blank=True, null=True)
+    fichier_image = models.ImageField(upload_to=image_upload_path, blank=True, null=True)
     auteur = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
     salon = models.ForeignKey(Salon, on_delete=models.CASCADE, related_name='messages')
     date_envoi = models.DateTimeField(auto_now_add=True)
@@ -72,4 +94,6 @@ class Message(models.Model):
     def __str__(self):
         if self.type_message == 'audio':
             return f"{self.auteur.username}: [Audio]"
+        elif self.type_message == 'image':
+            return f"{self.auteur.username}: [Image]"
         return f"{self.auteur.username}: {self.contenu[:30] if self.contenu else ''}..."

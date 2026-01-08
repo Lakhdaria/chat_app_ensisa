@@ -2,51 +2,164 @@
 
 {% block title %}Connexion{% endblock %}
 
+{% block extra_css %}
+<style>
+    .auth-wrapper {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    
+    .auth-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 420px;
+        overflow: hidden;
+    }
+    
+    .auth-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        text-align: center;
+        color: #fff;
+    }
+    
+    .auth-header i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .auth-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .auth-body {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        border: 2px solid #eee;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .input-group-custom {
+        position: relative;
+    }
+    
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+    
+    .input-group-custom .form-control {
+        padding-left: 2.75rem;
+    }
+    
+    .btn-auth {
+        width: 100%;
+        padding: 0.85rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: #fff;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-auth:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: #fff;
+    }
+    
+    .auth-footer {
+        text-align: center;
+        padding: 1.5rem 2rem;
+        background: #f8f9fa;
+        border-top: 1px solid #eee;
+    }
+    
+    .auth-footer a {
+        color: #667eea;
+        font-weight: 600;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <h2 class="text-center mb-4">
-                    <i class="bi bi-box-arrow-in-right"></i> Connexion
-                </h2>
-                
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    {% for field in form %}
-                    <div class="mb-3">
-                        <label class="form-label">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.errors %}
-                        <div class="text-danger small">
-                            {% for error in field.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <i class="bi bi-chat-dots-fill"></i>
+            <h2>Connexion</h2>
+        </div>
+        
+        <div class="auth-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
                     {% endfor %}
-                    
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {% for error in form.non_field_errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-box-arrow-in-right"></i> Se connecter
-                    </button>
-                </form>
+                </div>
+            {% endif %}
+            
+            <form method="post">
+                {% csrf_token %}
                 
-                <hr>
-                <p class="text-center mb-0">
-                    Pas encore de compte ? 
-                    <a href="{% url 'inscription' %}">S'inscrire</a>
-                </p>
-            </div>
+                <div class="form-group">
+                    <label class="form-label">Nom d'utilisateur</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-person input-icon"></i>
+                        <input type="text" name="username" class="form-control" placeholder="Votre nom d'utilisateur" value="{{ form.username.value|default:'' }}" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Mot de passe</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-lock input-icon"></i>
+                        <input type="password" name="password" class="form-control" placeholder="Votre mot de passe" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-auth">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                </button>
+            </form>
+        </div>
+        
+        <div class="auth-footer">
+            Pas encore de compte ? <a href="{% url 'inscription' %}">S'inscrire</a>
         </div>
     </div>
 </div>

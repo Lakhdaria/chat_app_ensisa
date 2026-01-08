@@ -16,6 +16,7 @@ urlpatterns = [
     # API Messages
     path('api/salon/<int:salon_id>/envoyer/', views.envoyer_message, name='envoyer_message'),
     path('api/salon/<int:salon_id>/audio/', views.envoyer_audio, name='envoyer_audio'),
+    path('api/salon/<int:salon_id>/image/', views.envoyer_image, name='envoyer_image'),
     path('api/salon/<int:salon_id>/messages/', views.charger_messages, name='charger_messages'),
     
     # API Modération
@@ -25,4 +26,9 @@ urlpatterns = [
     path('api/salon/<int:salon_id>/membre/<int:user_id>/expulser/', views.expulser_membre, name='expulser_membre'),
     path('api/salon/<int:salon_id>/inviter/', views.inviter_membre, name='inviter_membre'),
     path('api/salon/<int:salon_id>/membres/', views.get_membres, name='get_membres'),
+    
+    # API Gestion salons
+    path('api/salon/<int:salon_id>/masquer/', views.masquer_salon, name='masquer_salon'),
+    path('api/salon/<int:salon_id>/afficher/', views.afficher_salon, name='afficher_salon'),
+    path('api/salon/<int:salon_id>/supprimer/', views.supprimer_salon, name='supprimer_salon'),
 ]
