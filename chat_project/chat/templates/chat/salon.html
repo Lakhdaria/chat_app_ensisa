@@ -1,21 +1,567 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ salon.nom }} - Chat{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .chat-wrapper {
+        height: calc(100vh - 100px);
+    }
+    
+    .chat-container {
+        height: 100%;
+        overflow-y: auto;
+        background: var(--bg-tertiary, #1a1f2e);
+        scroll-behavior: smooth;
+    }
+    
+    .chat-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .chat-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb {
+        background: var(--border-color, #2f3845);
+        border-radius: 3px;
+    }
+    
+    /* Messages */
+    .message {
+        max-width: 75%;
+        padding: 10px 14px;
+        margin: 8px 16px;
+        border-radius: 16px;
+        background: var(--card-bg, #252d3d);
+        position: relative;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-own {
+        margin-left: auto;
+        background: var(--primary-gradient);
+        color: #fff;
+    }
+    
+    .message-own .message-author,
+    .message-own .message-time {
+        color: rgba(255,255,255,0.8) !important;
+    }
+    
+    .message-author {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #667eea;
+    }
+    
+    .message-time {
+        font-size: 0.7rem;
+        color: var(--text-muted, #6e7681);
+        margin-left: 8px;
+    }
+    
+    .message-content {
+        margin-top: 4px;
+        word-wrap: break-word;
+        color: var(--text-primary, #e7e9ea);
+        line-height: 1.4;
+    }
+    
+    .message-own .message-content {
+        color: #fff;
+    }
+    
+    .message-image {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 12px;
+        margin-top: 8px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .message-image:hover {
+        transform: scale(1.02);
+    }
+    
+    .message-audio {
+        margin-top: 8px;
+    }
+    
+    .message-audio audio {
+        width: 100%;
+        height: 36px;
+    }
+    
+    /* Zone de saisie */
+    .chat-input-wrapper {
+        background: var(--card-bg, #252d3d);
+        border-top: 1px solid var(--border-color, #2f3845);
+        padding: 12px 16px;
+    }
+    
+    .chat-input-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-tertiary, #1a1f2e);
+        border-radius: 24px;
+        padding: 6px 12px;
+        border: 1px solid var(--border-color, #2f3845);
+    }
+    
+    .chat-input-container:focus-within {
+        border-color: #667eea;
+    }
+    
+    #message-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        color: var(--text-primary, #e7e9ea);
+        padding: 8px;
+        font-size: 0.95rem;
+    }
+    
+    #message-input:focus {
+        outline: none;
+    }
+    
+    #message-input::placeholder {
+        color: var(--text-muted, #6e7681);
+    }
+    
+    .btn-input {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary, #8b98a5);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .btn-input:hover {
+        background: var(--hover-bg, #2a3347);
+        color: #667eea;
+    }
+    
+    .btn-send {
+        background: var(--primary-gradient);
+        color: #fff;
+    }
+    
+    .btn-send:hover {
+        transform: scale(1.05);
+        color: #fff;
+    }
+    
+    /* Emoji picker */
+    #emoji-picker {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        background: var(--card-bg, #252d3d);
+        border: 1px solid var(--border-color, #2f3845);
+        border-radius: 12px;
+        padding: 12px;
+        display: none;
+        z-index: 1000;
+        width: 300px;
+        max-height: 250px;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    
+    #emoji-picker.show {
+        display: block;
+    }
+    
+    .emoji-btn {
+        font-size: 1.5rem;
+        padding: 4px 8px;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .emoji-btn:hover {
+        background: var(--hover-bg, #2a3347);
+        transform: scale(1.2);
+    }
+    
+    /* Sidebar membres */
+    .members-card {
+        background: var(--card-bg, #252d3d);
+        border: 1px solid var(--border-color, #2f3845);
+        border-radius: 16px;
+        overflow: hidden;
+        height: fit-content;
+    }
+    
+    .members-header {
+        background: var(--bg-tertiary, #1a1f2e);
+        padding: 16px;
+        border-bottom: 1px solid var(--border-color, #2f3845);
+    }
+    
+    .members-header h6 {
+        margin: 0;
+        color: var(--text-primary, #e7e9ea);
+        font-weight: 600;
+    }
+    
+    .members-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 8px;
+    }
+    
+    .member-item {
+        padding: 10px 12px;
+        border-radius: 10px;
+        margin-bottom: 4px;
+        transition: background 0.2s;
+    }
+    
+    .member-item:hover {
+        background: var(--hover-bg, #2a3347);
+    }
+    
+    .connection-status {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border-color, #2f3845);
+        text-align: center;
+    }
+    
+    /* Sidebar mobile */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1040;
+        display: none;
+    }
+    
+    .sidebar-overlay.show {
+        display: block;
+    }
+    
+    .sidebar-mobile {
+        position: fixed;
+        top: 0;
+        right: -300px;
+        width: 280px;
+        height: 100%;
+        background: var(--card-bg, #252d3d);
+        z-index: 1050;
+        padding: 20px;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+    }
+    
+    .sidebar-mobile.show {
+        right: 0;
+    }
+    
+    /* Recording indicator */
+    .recording-indicator {
+        width: 16px;
+        height: 16px;
+        background: #dc3545;
+        border-radius: 50%;
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.7; }
+    }
+    
+    /* Image modal */
+    .image-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: zoom-out;
+    }
+    
+    .image-modal.show {
+        display: flex;
+    }
+    
+    .image-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+    }
+    
+    /* Toast */
+    #toast-container {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 1060;
+    }
+    
+    /* Delete button */
+    .btn-delete-msg {
+        opacity: 0;
+        transition: opacity 0.2s;
+        position: absolute;
+        top: 5px;
+        right: 5px;
+    }
+    
+    .message:hover .btn-delete-msg {
+        opacity: 1;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .chat-wrapper {
+            height: calc(100vh - 110px);
+        }
+        
+        .message {
+            max-width: 85%;
+            padding: 8px 12px;
+            margin: 4px 8px;
+        }
+        
+        #emoji-picker {
+            width: 260px;
+        }
+        
+        .d-md-none-hide {
+            display: none !important;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .message {
+            font-size: 0.9rem;
+        }
+        
+        .btn-input {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Overlay pour sidebar mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Modal pour afficher les images en grand -->
+<div class="image-modal" id="image-modal">
+    <img src="" alt="Image agrandie" id="modal-image">
+</div>
+
+<div class="row g-2 chat-wrapper">
+    <!-- Zone de chat principale -->
+    <div class="col-lg-9 col-md-8 col-12 d-flex flex-column h-100">
+        <div class="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden" style="border-radius: 16px; background: var(--card-bg);">
+            
+            <!-- Header du salon -->
+            <div class="card-header py-2 px-3 border-0" style="background: var(--primary-gradient);">
+                <div class="d-flex justify-content-between align-items-center text-white">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if salon.est_prive %}
+                            <i class="bi bi-lock-fill"></i>
+                        {% else %}
+                            <i class="bi bi-chat-dots-fill"></i>
+                        {% endif %}
+                        <div>
+                            <h6 class="mb-0 fw-bold">{{ salon.nom }}</h6>
+                            <small class="opacity-75 d-none d-sm-block" style="font-size: 0.7rem;">
+                                {{ membres.count }} membre{{ membres.count|pluralize }}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <!-- Bouton sidebar mobile -->
+                        <button class="btn btn-light btn-sm d-md-none" id="btn-show-sidebar">
+                            <i class="bi bi-people-fill"></i>
+                        </button>
+                        
+                        <!-- Bouton inviter (si admin) -->
+                        {% if is_admin and salon.est_prive %}
+                        <button class="btn btn-outline-light btn-sm d-none d-sm-inline-flex" data-bs-toggle="modal" data-bs-target="#inviteModal">
+                            <i class="bi bi-person-plus"></i>
+                        </button>
+                        {% endif %}
+                        
+                        <!-- Bouton quitter -->
+                        {% if membership and salon.createur != request.user %}
+                        <a href="{% url 'quitter_salon' salon.id %}" class="btn btn-outline-light btn-sm d-none d-sm-inline-flex">
+                            <i class="bi bi-box-arrow-left"></i>
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Bouton accueil -->
+                        <a href="{% url 'home' %}" class="btn btn-light btn-sm">
+                            <i class="bi bi-house-fill"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Zone des messages -->
+            <div class="chat-container flex-grow-1" id="chat-messages" 
+                 data-salon-id="{{ salon.id }}" 
+                 data-user-id="{{ request.user.id }}"
+                 data-username="{{ request.user.username }}"
+                 data-is-modo="{{ is_modo|yesno:'true,false' }}"
+                 data-is-admin="{{ is_admin|yesno:'true,false' }}">
+                
+                {% for msg in messages_salon %}
+                <div class="message {% if msg.auteur == request.user %}message-own{% endif %}" data-id="{{ msg.id }}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="message-author">{{ msg.auteur.username }}</span>
+                            <span class="message-time">{{ msg.date_envoi|date:"H:i" }}</span>
+                        </div>
+                        {% if msg.auteur == request.user or is_modo or is_admin %}
+                        <button class="btn btn-link btn-sm btn-delete-msg text-danger p-0" data-msg-id="{{ msg.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="message-content">{{ msg.contenu }}</div>
+                    
+                    {% if msg.image %}
+                    <div class="message-image-container">
+                        <img src="{{ msg.image.url }}" alt="Image" class="message-image" onclick="openImageModal('{{ msg.image.url }}')">
+                    </div>
+                    {% endif %}
+                    
+                    {% if msg.audio %}
+                    <div class="message-audio">
+                        <audio controls>
+                            <source src="{{ msg.audio.url }}" type="audio/webm">
+                        </audio>
+                    </div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="text-center py-5" id="no-messages">
+                    <i class="bi bi-chat-dots text-muted" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p class="text-muted mt-2">Aucun message. Soyez le premier à écrire !</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Zone de saisie -->
+            <div class="chat-input-wrapper">
+                <form id="message-form">
+                    {% csrf_token %}
+                    <div class="chat-input-container position-relative">
+                        <!-- Emoji picker -->
+                        <div id="emoji-picker">
+                            {% for emoji in "😀😂😍🥰😎😢😡👍👎❤️🔥💯🎉🤔😴🙄😅🤣😊😇🥺😤😭😱🤯😏🥳🤩😋🤤" %}
+                            <button type="button" class="emoji-btn">{{ emoji }}</button>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Bouton emoji -->
+                        <button type="button" class="btn-input" id="btn-emoji">
+                            <i class="bi bi-emoji-smile"></i>
+                        </button>
+                        
+                        <!-- Bouton image -->
+                        <button type="button" class="btn-input" id="btn-image">
+                            <i class="bi bi-image"></i>
+                        </button>
+                        <input type="file" id="image-input" accept="image/*" style="display: none;">
+                        
+                        <!-- Bouton caméra -->
+                        <button type="button" class="btn-input d-none d-sm-flex" id="btn-camera" data-bs-toggle="modal" data-bs-target="#cameraModal">
+                            <i class="bi bi-camera"></i>
+                        </button>
+                        
+                        <!-- Bouton vocal -->
+                        <button type="button" class="btn-input" id="btn-voice" data-bs-toggle="modal" data-bs-target="#voiceModal">
+                            <i class="bi bi-mic"></i>
+                        </button>
+                        
+                        <!-- Input texte -->
+                        <input type="text" id="message-input" placeholder="Écrire un message..." autocomplete="off">
+                        
+                        <!-- Bouton envoyer -->
+                        <button type="submit" class="btn-input btn-send" id="send-btn">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar membres (desktop) -->
+    <div class="col-lg-3 col-md-4 d-none d-md-block">
+        <div class="members-card">
+            <div class="members-header">
+                <h6><i class="bi bi-people-fill me-2"></i>Membres ({{ membres.count }})</h6>
+                {% if is_admin and salon.est_prive %}
+                <button class="btn btn-sm btn-outline-primary mt-2 w-100" data-bs-toggle="modal" data-bs-target="#inviteModal">
+                    <i class="bi bi-person-plus me-1"></i>Inviter
+                </button>
                 {% endif %}
             </div>
+            
             <div class="members-list">
                 {% for membre in membres %}
                 <div class="member-item d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-person-circle text-primary"></i>
                         <div>
-                            <div class="small fw-semibold">{{ membre.user.username }}</div>
+                            <div class="small fw-semibold" style="color: var(--text-primary);">{{ membre.user.username }}</div>
                             {% if membre.user == salon.createur %}
-                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i></span>
+                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> Créateur</span>
                             {% elif membre.role == 'admin' %}
-                                <span class="badge bg-danger"><i class="bi bi-shield-fill"></i></span>
+                                <span class="badge bg-danger"><i class="bi bi-shield-fill"></i> Admin</span>
                             {% elif membre.role == 'moderateur' %}
-                                <span class="badge bg-info"><i class="bi bi-shield"></i></span>
+                                <span class="badge bg-info"><i class="bi bi-shield"></i> Modo</span>
                             {% endif %}
                         </div>
                     </div>
+                    
                     {% if is_admin and membre.user != request.user and membre.user != salon.createur %}
                     <div class="dropdown">
                         <button class="btn btn-link btn-sm p-0" style="color: var(--text-muted);" data-bs-toggle="dropdown">
@@ -38,14 +584,16 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>
-        <div class="connection-status">
-            <i class="bi bi-circle-fill text-success" id="connection-status-icon" style="font-size: 0.5rem;"></i>
-            <small style="color: var(--text-muted);" class="ms-2" id="refresh-status">Connecté</small>
+            
+            <div class="connection-status">
+                <i class="bi bi-circle-fill text-success" id="connection-status-icon" style="font-size: 0.5rem;"></i>
+                <small style="color: var(--text-muted);" class="ms-2" id="refresh-status">Connecté</small>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Sidebar mobile -->
 <div class="sidebar-mobile" id="sidebar-mobile">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h6 class="mb-0" style="color: var(--text-primary);"><i class="bi bi-people-fill me-2"></i>Membres</h6>
@@ -58,17 +606,22 @@
             <span>{{ membre.user.username }}</span>
             {% if membre.user == salon.createur %}
                 <span class="badge bg-warning text-dark ms-auto"><i class="bi bi-star-fill"></i></span>
+            {% elif membre.role == 'admin' %}
+                <span class="badge bg-danger ms-auto"><i class="bi bi-shield-fill"></i></span>
+            {% elif membre.role == 'moderateur' %}
+                <span class="badge bg-info ms-auto"><i class="bi bi-shield"></i></span>
             {% endif %}
         </div>
         {% endfor %}
     </div>
 </div>
 
+<!-- Modal Invitation -->
 <div class="modal fade" id="inviteModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Inviter</h5>
+                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Inviter un membre</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -82,6 +635,7 @@
     </div>
 </div>
 
+<!-- Modal Message Vocal -->
 <div class="modal fade" id="voiceModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
@@ -108,6 +662,7 @@
     </div>
 </div>
 
+<!-- Modal Caméra -->
 <div class="modal fade" id="cameraModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -131,18 +686,70 @@
 {% block extra_js %}
 <script src="{% static 'js/chat.js' %}"></script>
 <script>
+// Sidebar mobile
 $('#btn-show-sidebar').on('click', function() {
     $('#sidebar-mobile, #sidebar-overlay').addClass('show');
 });
+
 $('#btn-close-sidebar, #sidebar-overlay').on('click', function() {
     $('#sidebar-mobile, #sidebar-overlay').removeClass('show');
 });
+
+// Image modal
 function openImageModal(src) {
     $('#modal-image').attr('src', src);
     $('#image-modal').addClass('show');
 }
+
 $('#image-modal').on('click', function() {
     $(this).removeClass('show');
+});
+
+// Emoji picker
+$('#btn-emoji').on('click', function(e) {
+    e.stopPropagation();
+    $('#emoji-picker').toggleClass('show');
+});
+
+$('.emoji-btn').on('click', function() {
+    var emoji = $(this).text();
+    var input = $('#message-input');
+    input.val(input.val() + emoji);
+    input.focus();
+    $('#emoji-picker').removeClass('show');
+});
+
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('#emoji-picker, #btn-emoji').length) {
+        $('#emoji-picker').removeClass('show');
+    }
+});
+
+// Image upload
+$('#btn-image').on('click', function() {
+    $('#image-input').click();
+});
+
+$('#image-input').on('change', function() {
+    var file = this.files[0];
+    if (file) {
+        var formData = new FormData();
+        formData.append('image', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        $.ajax({
+            url: '/api/salon/{{ salon.id }}/message/',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                if (res.success) {
+                    location.reload();
+                }
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
