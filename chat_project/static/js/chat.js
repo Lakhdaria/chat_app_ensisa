@@ -1,181 +1,224 @@
 /**
  * Chat Application - JavaScript Client
- * Compatible avec les URLs de views.py
+ * Avec emojis, messages vocaux, et images
  */
 
 $(document).ready(function() {
-    // Éléments DOM
     var chatMessages = $('#chat-messages');
     var messageForm = $('#message-form');
     var messageInput = $('#message-input');
+    var emojiBtn = $('#emoji-btn');
+    var emojiPicker = $('#emoji-picker');
+    var voiceBtn = $('#voice-btn');
+    var imageBtn = $('#image-btn');
+    var imageInput = $('#image-input');
+    var cameraBtn = $('#camera-btn');
     
-    // Données du salon
     var salonId = chatMessages.data('salon-id');
     var userId = chatMessages.data('user-id');
     var username = chatMessages.data('username');
-    var isModo = chatMessages.data('is-modo') === 'true' || chatMessages.data('is-modo') === true || chatMessages.data('is-modo') === 'True';
-    var isAdmin = chatMessages.data('is-admin') === 'true' || chatMessages.data('is-admin') === true || chatMessages.data('is-admin') === 'True';
+    var isModo = chatMessages.data('is-modo') == true || chatMessages.data('is-modo') == 'True';
+    var isAdmin = chatMessages.data('is-admin') == true || chatMessages.data('is-admin') == 'True';
     var csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
     
-    // Variables
     var lastMessageId = 0;
     var refreshInterval;
+    var tempMessageId = -1;
     
     // Audio
     var mediaRecorder = null;
     var audioChunks = [];
+    var recordingStartTime = null;
     var recordingTimer = null;
-    var recordingSeconds = 0;
+    var isRecording = false;
+    var audioStream = null;
     
-    // Caméra
+    // Image
+    var selectedImageData = null;
     var cameraStream = null;
 
-    // ==========================================
-    // INITIALISATION
-    // ==========================================
-    
+    // Emojis
+    var emojis = ['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😍', '🥰', '😘', '😋', '😛', '😜', '🤔', '😐', '😏', '😢', '😭', '😤', '😡', '👍', '👎', '👌', '✌️', '👋', '👏', '🙌', '🙏', '💪', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🔥', '⭐', '✨', '🎉', '🎊', '✅', '❌', '💯', '💬', '📸', '🎵', '🎤'];
+
+    // Initialisation
+    init();
+
     function init() {
         initLastMessageId();
+        initEmojiPicker();
         scrollToBottom();
         startPolling();
         messageInput.focus();
-        console.log('Chat initialisé - Salon:', salonId, '- User:', userId, '- Admin:', isAdmin, '- Modo:', isModo);
+        console.log('Chat initialisé - Admin:', isAdmin, '- Modo:', isModo);
     }
-    
+
     function initLastMessageId() {
         chatMessages.find('.message').each(function() {
             var id = parseInt($(this).data('id')) || 0;
             if (id > lastMessageId) lastMessageId = id;
         });
-        console.log('Last message ID:', lastMessageId);
     }
-    
+
     function scrollToBottom() {
         chatMessages.scrollTop(chatMessages[0].scrollHeight);
     }
-    
-    // ==========================================
-    // POLLING - Récupération des nouveaux messages
-    // ==========================================
-    
-    function startPolling() {
-        refreshInterval = setInterval(fetchNewMessages, 3000);
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
-    
-    function fetchNewMessages() {
+
+    function getCurrentTime() {
+        var now = new Date();
+        var h = String(now.getHours()).padStart(2, '0');
+        var m = String(now.getMinutes()).padStart(2, '0');
+        return h + ':' + m;
+    }
+
+    function formatDuration(sec) {
+        var mins = Math.floor(sec / 60);
+        var secs = Math.floor(sec % 60);
+        return mins + ':' + String(secs).padStart(2, '0');
+    }
+
+    function showToast(message, type) {
+        type = type || 'info';
+        var html = '<div class="toast align-items-center text-white bg-' + type + ' border-0" role="alert" style="animation: slideIn 0.3s ease;">' +
+            '<div class="d-flex"><div class="toast-body">' + message + '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div></div>';
+        var el = $(html);
+        $('#toast-container').append(el);
+        var toast = new bootstrap.Toast(el[0]);
+        toast.show();
+        el.on('hidden.bs.toast', function() { $(this).remove(); });
+    }
+
+    // Emoji Picker
+    function initEmojiPicker() {
+        var html = '<div class="emoji-grid">';
+        for (var i = 0; i < emojis.length; i++) {
+            html += '<span class="emoji-item" data-emoji="' + emojis[i] + '">' + emojis[i] + '</span>';
+        }
+        html += '</div>';
+        emojiPicker.html(html);
+    }
+
+    // Messages
+    function appendMessage(msg, isOwn, isTemp) {
+        if (chatMessages.find('[data-id="' + msg.id + '"]').length > 0) {
+            return;
+        }
+        
+        $('#no-messages').remove();
+        
+        var canDelete = isOwn || isModo || isAdmin;
+        var deleteBtn = '';
+        if (canDelete && !isTemp) {
+            deleteBtn = '<button class="btn btn-link btn-sm text-danger p-0 ms-1 btn-delete-msg" data-msg-id="' + msg.id + '"><i class="bi bi-trash"></i></button>';
+        }
+        
+        var content = '';
+        if (msg.type === 'audio') {
+            var audioUrl = msg.audio_url || '';
+            var duree = msg.duree || 0;
+            if (audioUrl) {
+                content = '<div class="audio-message d-flex align-items-center gap-3">' +
+                    '<button class="btn btn-play-audio"><i class="bi bi-play-fill"></i></button>' +
+                    '<div class="flex-grow-1"><div class="audio-progress-bar"><div class="audio-progress"></div></div></div>' +
+                    '<small class="text-white-50">' + formatDuration(duree) + '</small>' +
+                    '<audio class="d-none" src="' + audioUrl + '" preload="metadata"></audio></div>';
+            }
+        } else if (msg.type === 'image') {
+            var imageUrl = msg.image_url || '';
+            if (imageUrl) {
+                content = '<div class="image-message">' +
+                    '<img src="' + imageUrl + '" alt="Image" onclick="openImageModal(this.src)">' +
+                    '</div>';
+            }
+        } else {
+            content = '<div class="message-content">' + escapeHtml(msg.contenu || '') + '</div>';
+        }
+        
+        var badge = isTemp ? '<span class="badge bg-secondary ms-1">...</span>' : '';
+        var cls = 'message' + (isOwn ? ' message-own' : '') + (isTemp ? ' message-temp' : '');
+        
+        var html = '<div class="' + cls + '" data-id="' + msg.id + '">' +
+            '<div class="d-flex justify-content-between align-items-center gap-2 mb-1">' +
+            '<span class="message-author"><i class="bi bi-person-fill me-1"></i>' + escapeHtml(msg.auteur) + '</span>' +
+            '<span class="message-time">' + msg.date_envoi + badge + deleteBtn + '</span></div>' +
+            content + '</div>';
+        
+        chatMessages.append(html);
+        scrollToBottom();
+    }
+
+    function envoyerMessage(contenu) {
+        if (!contenu) return;
+        
+        var tempId = tempMessageId--;
+        appendMessage({
+            id: tempId,
+            contenu: contenu,
+            type: 'text',
+            auteur: username,
+            date_envoi: getCurrentTime()
+        }, true, true);
+        
+        messageInput.val('');
+        
+        $.ajax({
+            url: '/api/salon/' + salonId + '/envoyer/',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
+            data: JSON.stringify({ contenu: contenu }),
+            success: function(res) {
+                if (res.success) {
+                    var el = chatMessages.find('[data-id="' + tempId + '"]');
+                    el.attr('data-id', res.message.id).removeClass('message-temp');
+                    el.find('.badge').remove();
+                    el.find('.message-time').append(
+                        '<button class="btn btn-link btn-sm text-danger p-0 ms-1 btn-delete-msg" data-msg-id="' + res.message.id + '"><i class="bi bi-trash"></i></button>'
+                    );
+                    if (res.message.id > lastMessageId) lastMessageId = res.message.id;
+                }
+            },
+            error: function() {
+                chatMessages.find('[data-id="' + tempId + '"]').addClass('message-error')
+                    .find('.badge').removeClass('bg-secondary').addClass('bg-danger').text('Erreur');
+                showToast('Erreur d\'envoi', 'danger');
+            }
+        });
+    }
+
+    function chargerMessages() {
         $.ajax({
             url: '/api/salon/' + salonId + '/messages/',
             method: 'GET',
             data: { last_id: lastMessageId },
             success: function(res) {
-                if (res.success && res.messages && res.messages.length > 0) {
-                    res.messages.forEach(function(msg) {
-                        if (msg.id > lastMessageId && msg.auteur_id != userId) {
-                            appendMessage(msg);
-                            lastMessageId = msg.id;
+                if (res.success && res.messages) {
+                    for (var i = 0; i < res.messages.length; i++) {
+                        var msg = res.messages[i];
+                        if (!chatMessages.find('[data-id="' + msg.id + '"]').length) {
+                            appendMessage(msg, msg.auteur_id === userId, false);
+                            if (msg.id > lastMessageId) lastMessageId = msg.id;
                         }
-                    });
-                    scrollToBottom();
-                    $('#no-messages').hide();
-                }
-            },
-            error: function(err) {
-                console.log('Erreur polling:', err);
-            }
-        });
-    }
-    
-    // ==========================================
-    // ENVOI DE MESSAGES TEXTE
-    // ==========================================
-    
-    messageForm.on('submit', function(e) {
-        e.preventDefault();
-        var contenu = messageInput.val().trim();
-        if (!contenu) return;
-        
-        $.ajax({
-            url: '/api/salon/' + salonId + '/envoyer/',
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
-            contentType: 'application/json',
-            data: JSON.stringify({ contenu: contenu }),
-            success: function(res) {
-                if (res.success) {
-                    messageInput.val('');
-                    appendMessage(res.message);
-                    if (res.message.id > lastMessageId) {
-                        lastMessageId = res.message.id;
                     }
-                    scrollToBottom();
-                    $('#no-messages').hide();
                 }
+                $('#connection-status-icon').removeClass('text-danger').addClass('text-success');
+                $('#refresh-status').text('Connecté');
             },
-            error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur d\'envoi';
-                showToast(error, 'danger');
+            error: function() {
+                $('#connection-status-icon').removeClass('text-success').addClass('text-danger');
+                $('#refresh-status').text('Déconnecté');
             }
         });
-    });
-    
-    // ==========================================
-    // AFFICHAGE DES MESSAGES
-    // ==========================================
-    
-    function appendMessage(msg) {
-        var isOwn = msg.auteur_id == userId;
-        var html = '<div class="message ' + (isOwn ? 'message-own' : '') + '" data-id="' + msg.id + '">';
-        html += '<div class="d-flex align-items-center justify-content-between">';
-        html += '<div><span class="message-author">' + escapeHtml(msg.auteur) + '</span>';
-        html += '<span class="message-time">' + msg.date_envoi + '</span></div>';
-        
-        // Bouton supprimer
-        if (isOwn || isModo || isAdmin) {
-            html += '<button class="btn btn-link btn-sm btn-delete-msg text-danger p-0" data-msg-id="' + msg.id + '">';
-            html += '<i class="bi bi-trash"></i></button>';
-        }
-        html += '</div>';
-        
-        // Contenu selon le type
-        if (msg.type === 'text' && msg.contenu) {
-            html += '<div class="message-content">' + escapeHtml(msg.contenu) + '</div>';
-        }
-        
-        if (msg.type === 'image' && msg.image_url) {
-            html += '<div class="message-image-container">';
-            html += '<img src="' + msg.image_url + '" alt="Image" class="message-image" onclick="openImageModal(\'' + msg.image_url + '\')">';
-            html += '</div>';
-        }
-        
-        if (msg.type === 'audio' && msg.audio_url) {
-            html += '<div class="message-audio">';
-            html += '<audio controls><source src="' + msg.audio_url + '" type="audio/webm"></audio>';
-            if (msg.duree) {
-                html += '<small class="text-muted ms-2">' + Math.round(msg.duree) + 's</small>';
-            }
-            html += '</div>';
-        }
-        
-        html += '</div>';
-        chatMessages.append(html);
     }
-    
-    function escapeHtml(text) {
-        if (!text) return '';
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // ==========================================
-    // SUPPRESSION DE MESSAGES
-    // ==========================================
-    
-    $(document).on('click', '.btn-delete-msg', function(e) {
-        e.preventDefault();
-        var msgId = $(this).data('msg-id');
-        var msgElement = $(this).closest('.message');
-        
+
+    function supprimerMessage(msgId) {
         if (!confirm('Supprimer ce message ?')) return;
         
         $.ajax({
@@ -184,411 +227,486 @@ $(document).ready(function() {
             headers: { 'X-CSRFToken': csrfToken },
             success: function(res) {
                 if (res.success) {
-                    msgElement.fadeOut(300, function() { $(this).remove(); });
+                    chatMessages.find('[data-id="' + msgId + '"]').fadeOut(300, function() {
+                        $(this).remove();
+                    });
                     showToast('Message supprimé', 'success');
+                } else {
+                    showToast(res.error || 'Erreur', 'danger');
                 }
             },
             error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
+                showToast('Erreur de suppression', 'danger');
             }
         });
-    });
-    
-    // ==========================================
-    // EMOJIS
-    // ==========================================
-    
-    $('#btn-emoji').on('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#emoji-picker').toggleClass('show');
-    });
-    
-    $(document).on('click', '.emoji-btn', function(e) {
-        e.preventDefault();
-        var emoji = $(this).text();
-        var input = messageInput[0];
-        var cursorPos = input.selectionStart || 0;
-        var textBefore = messageInput.val().substring(0, cursorPos);
-        var textAfter = messageInput.val().substring(cursorPos);
-        messageInput.val(textBefore + emoji + textAfter);
-        messageInput.focus();
+    }
+
+    // ==================
+    // Audio Recording
+    // ==================
+
+    function initAudio() {
+        return navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            audioStream = stream;
+            var options = {};
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options.mimeType = 'audio/webm';
+            }
+            mediaRecorder = new MediaRecorder(stream, options);
+            
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data.size > 0) audioChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = function() {
+                if (audioChunks.length > 0 && recordingStartTime) {
+                    var blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    var duree = (Date.now() - recordingStartTime) / 1000;
+                    if (duree >= 1) {
+                        envoyerAudio(blob, duree);
+                    } else {
+                        showToast('Enregistrement trop court', 'warning');
+                    }
+                }
+                audioChunks = [];
+                recordingStartTime = null;
+            };
+            
+            return true;
+        })
+        .catch(function(err) {
+            console.error('Erreur micro:', err);
+            showToast('Accès micro refusé', 'danger');
+            return false;
+        });
+    }
+
+    function startRecording() {
+        if (!mediaRecorder) return;
+        audioChunks = [];
+        recordingStartTime = Date.now();
+        isRecording = true;
+        mediaRecorder.start(100);
         
-        // Repositionner le curseur après l'emoji
-        var newPos = cursorPos + emoji.length;
-        input.setSelectionRange(newPos, newPos);
+        $('#recording-status').removeClass('d-none');
+        $('#btn-start-recording').addClass('d-none');
+        $('#btn-stop-recording').removeClass('d-none');
+        $('#recording-time').text('0:00');
         
-        $('#emoji-picker').removeClass('show');
-    });
-    
-    // Fermer le picker en cliquant ailleurs
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#emoji-picker, #btn-emoji').length) {
-            $('#emoji-picker').removeClass('show');
+        recordingTimer = setInterval(function() {
+            var sec = (Date.now() - recordingStartTime) / 1000;
+            $('#recording-time').text(formatDuration(sec));
+            if (sec >= 60) stopRecording();
+        }, 100);
+    }
+
+    function stopRecording() {
+        if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+        isRecording = false;
+        mediaRecorder.stop();
+        clearInterval(recordingTimer);
+        
+        $('#recording-status').addClass('d-none');
+        $('#btn-start-recording').removeClass('d-none');
+        $('#btn-stop-recording').addClass('d-none');
+        
+        var modal = bootstrap.Modal.getInstance(document.getElementById('voiceModal'));
+        if (modal) modal.hide();
+    }
+
+    function cancelRecording() {
+        audioChunks = [];
+        recordingStartTime = null;
+        isRecording = false;
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
         }
-    });
-    
-    // ==========================================
-    // UPLOAD D'IMAGES
-    // ==========================================
-    
-    $('#btn-image').on('click', function(e) {
-        e.preventDefault();
-        $('#image-input').click();
-    });
-    
-    $('#image-input').on('change', function() {
-        var file = this.files[0];
-        if (!file) return;
+        clearInterval(recordingTimer);
+        $('#recording-status').addClass('d-none');
+        $('#btn-start-recording').removeClass('d-none');
+        $('#btn-stop-recording').addClass('d-none');
+    }
+
+    function envoyerAudio(blob, duree) {
+        showToast('Envoi audio...', 'info');
+        
+        var reader = new FileReader();
+        reader.onloadend = function() {
+            $.ajax({
+                url: '/api/salon/' + salonId + '/audio/',
+                method: 'POST',
+                contentType: 'application/json',
+                headers: { 'X-CSRFToken': csrfToken },
+                data: JSON.stringify({ audio: reader.result, duree: duree }),
+                success: function(res) {
+                    if (res.success && res.message) {
+                        showToast('Audio envoyé !', 'success');
+                        appendMessage({
+                            id: res.message.id,
+                            type: 'audio',
+                            audio_url: res.message.audio_url,
+                            duree: res.message.duree,
+                            auteur: res.message.auteur,
+                            auteur_id: res.message.auteur_id,
+                            date_envoi: res.message.date_envoi
+                        }, true, false);
+                        if (res.message.id > lastMessageId) lastMessageId = res.message.id;
+                    } else {
+                        showToast(res.error || 'Erreur', 'danger');
+                    }
+                },
+                error: function() {
+                    showToast('Erreur envoi audio', 'danger');
+                }
+            });
+        };
+        reader.readAsDataURL(blob);
+    }
+
+    function playAudio(btn) {
+        var container = btn.closest('.audio-message');
+        var audio = container.find('audio')[0];
+        var progress = container.find('.audio-progress');
+        var icon = btn.find('i');
+        
+        if (!audio) return;
+        
+        $('.audio-message audio').each(function() {
+            if (this !== audio && !this.paused) {
+                this.pause();
+                this.currentTime = 0;
+                $(this).closest('.audio-message').find('.btn-play-audio i')
+                    .removeClass('bi-pause-fill').addClass('bi-play-fill');
+            }
+        });
+        
+        if (audio.paused) {
+            audio.play().then(function() {
+                icon.removeClass('bi-play-fill').addClass('bi-pause-fill');
+            }).catch(function(e) {
+                showToast('Erreur de lecture', 'danger');
+            });
+            
+            audio.ontimeupdate = function() {
+                var pct = (audio.currentTime / audio.duration) * 100 || 0;
+                progress.css('width', pct + '%');
+            };
+            audio.onended = function() {
+                icon.removeClass('bi-pause-fill').addClass('bi-play-fill');
+                progress.css('width', '0%');
+            };
+        } else {
+            audio.pause();
+            icon.removeClass('bi-pause-fill').addClass('bi-play-fill');
+        }
+    }
+
+    // ==================
+    // Image Upload
+    // ==================
+
+    function handleImageSelect(file) {
+        if (!file) {
+            console.log('Pas de fichier');
+            return;
+        }
         
         if (!file.type.startsWith('image/')) {
-            showToast('Veuillez sélectionner une image', 'warning');
+            showToast('Fichier non valide (image requise)', 'warning');
             return;
         }
         
         if (file.size > 10 * 1024 * 1024) {
-            showToast('Image trop grande (max 10MB)', 'warning');
+            showToast('Image trop lourde (max 10MB)', 'warning');
             return;
         }
         
-        showToast('Envoi de l\'image...', 'info');
+        console.log('Image sélectionnée:', file.name, file.type, file.size);
         
         var reader = new FileReader();
         reader.onload = function(e) {
-            envoyerImage(e.target.result);
+            selectedImageData = e.target.result;
+            console.log('Image chargée, taille base64:', selectedImageData.length);
+            $('#image-preview').attr('src', selectedImageData);
+            $('#image-preview-container').css('display', 'block');
         };
-        reader.onerror = function() {
-            showToast('Erreur de lecture du fichier', 'danger');
+        reader.onerror = function(err) {
+            console.error('Erreur lecture fichier:', err);
+            showToast('Erreur lecture fichier', 'danger');
         };
         reader.readAsDataURL(file);
-    });
-    
+    }
+
+    function removeImagePreview() {
+        selectedImageData = null;
+        $('#image-preview-container').css('display', 'none');
+        $('#image-preview').attr('src', '');
+        $('#image-input').val('');
+    }
+
     function envoyerImage(imageData) {
+        if (!imageData) {
+            showToast('Aucune image sélectionnée', 'warning');
+            return;
+        }
+        
+        showToast('Envoi image...', 'info');
+        console.log('Envoi image, taille:', imageData.length);
+        
         $.ajax({
             url: '/api/salon/' + salonId + '/image/',
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
             contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
             data: JSON.stringify({ image: imageData }),
             success: function(res) {
-                if (res.success) {
+                console.log('Réponse serveur:', res);
+                if (res.success && res.message) {
                     showToast('Image envoyée !', 'success');
-                    appendMessage(res.message);
-                    if (res.message.id > lastMessageId) {
-                        lastMessageId = res.message.id;
-                    }
-                    scrollToBottom();
-                    $('#image-input').val('');
+                    appendMessage({
+                        id: res.message.id,
+                        type: 'image',
+                        image_url: res.message.image_url,
+                        auteur: res.message.auteur,
+                        auteur_id: res.message.auteur_id,
+                        date_envoi: res.message.date_envoi
+                    }, true, false);
+                    if (res.message.id > lastMessageId) lastMessageId = res.message.id;
+                    removeImagePreview();
+                } else {
+                    showToast(res.error || 'Erreur envoi', 'danger');
                 }
             },
             error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur d\'envoi';
-                showToast(error, 'danger');
-                console.log('Erreur image:', xhr.responseJSON);
+                console.error('Erreur AJAX:', xhr);
+                var err = 'Erreur envoi image';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    err = xhr.responseJSON.error;
+                }
+                showToast(err, 'danger');
             }
         });
     }
-    
-    // ==========================================
-    // MESSAGES VOCAUX
-    // ==========================================
-    
-    $('#btn-start-recording').on('click', function() {
-        startRecording();
-    });
-    
-    $('#btn-stop-recording').on('click', function() {
-        stopRecording();
-    });
-    
-    $('#btn-cancel-recording').on('click', function() {
-        cancelRecording();
-    });
-    
-    // Aussi annuler si on ferme le modal
-    $('#voiceModal').on('hidden.bs.modal', function() {
-        cancelRecording();
-    });
-    
-    function startRecording() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showToast('Votre navigateur ne supporte pas l\'enregistrement audio', 'danger');
-            return;
-        }
+
+    // ==================
+    // Camera
+    // ==================
+
+    function initCamera() {
+        console.log('Initialisation caméra...');
         
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(function(stream) {
-                audioChunks = [];
-                recordingSeconds = 0;
-                
-                // Trouver le meilleur format supporté
-                var mimeType = 'audio/webm';
-                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                    mimeType = 'audio/webm;codecs=opus';
-                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-                    mimeType = 'audio/ogg;codecs=opus';
-                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                    mimeType = 'audio/mp4';
-                }
-                
-                try {
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-                } catch (e) {
-                    mediaRecorder = new MediaRecorder(stream);
-                }
-                
-                mediaRecorder.ondataavailable = function(e) {
-                    if (e.data.size > 0) {
-                        audioChunks.push(e.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = function() {
-                    stream.getTracks().forEach(function(track) { track.stop(); });
-                };
-                
-                mediaRecorder.start(100); // Collecter les données toutes les 100ms
-                
-                // UI
-                $('#btn-start-recording').addClass('d-none');
-                $('#btn-stop-recording').removeClass('d-none');
-                $('#recording-status').removeClass('d-none');
-                
-                // Timer
-                recordingTimer = setInterval(function() {
-                    recordingSeconds++;
-                    var mins = Math.floor(recordingSeconds / 60);
-                    var secs = recordingSeconds % 60;
-                    $('#recording-time').text(mins + ':' + (secs < 10 ? '0' : '') + secs);
-                }, 1000);
-                
-                console.log('Enregistrement démarré avec:', mimeType);
-            })
-            .catch(function(err) {
-                console.error('Erreur micro:', err);
-                showToast('Impossible d\'accéder au microphone: ' + err.message, 'danger');
-            });
-    }
-    
-    function stopRecording() {
-        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-            console.log('MediaRecorder inactif');
-            return;
-        }
-        
-        clearInterval(recordingTimer);
-        var duree = recordingSeconds;
-        
-        mediaRecorder.onstop = function() {
-            var blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-            console.log('Audio blob créé:', blob.size, 'bytes');
-            envoyerAudio(blob, duree);
-            resetRecordingUI();
-            
-            // Fermer le modal
-            var modalEl = document.getElementById('voiceModal');
-            var modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-        };
-        
-        mediaRecorder.stop();
-    }
-    
-    function cancelRecording() {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-        clearInterval(recordingTimer);
-        resetRecordingUI();
-        audioChunks = [];
-    }
-    
-    function resetRecordingUI() {
-        $('#btn-start-recording').removeClass('d-none');
-        $('#btn-stop-recording').addClass('d-none');
-        $('#recording-status').addClass('d-none');
-        $('#recording-time').text('0:00');
-        recordingSeconds = 0;
-    }
-    
-    function envoyerAudio(blob, duree) {
-        showToast('Envoi du message vocal...', 'info');
-        
-        var reader = new FileReader();
-        reader.onload = function() {
-            var base64data = reader.result;
-            console.log('Audio base64 length:', base64data.length);
-            
-            $.ajax({
-                url: '/api/salon/' + salonId + '/audio/',
-                method: 'POST',
-                headers: { 'X-CSRFToken': csrfToken },
-                contentType: 'application/json',
-                data: JSON.stringify({ 
-                    audio: base64data,
-                    duree: duree
-                }),
-                success: function(res) {
-                    if (res.success) {
-                        showToast('Message vocal envoyé !', 'success');
-                        appendMessage(res.message);
-                        if (res.message.id > lastMessageId) {
-                            lastMessageId = res.message.id;
-                        }
-                        scrollToBottom();
-                    }
-                },
-                error: function(xhr) {
-                    var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur d\'envoi';
-                    showToast(error, 'danger');
-                    console.log('Erreur audio:', xhr.responseJSON);
-                }
-            });
-        };
-        reader.onerror = function() {
-            showToast('Erreur de lecture audio', 'danger');
-        };
-        reader.readAsDataURL(blob);
-    }
-    
-    // ==========================================
-    // CAMÉRA
-    // ==========================================
-    
-    $('#cameraModal').on('shown.bs.modal', function() {
-        startCamera();
-    });
-    
-    $('#cameraModal').on('hidden.bs.modal', function() {
-        stopCamera();
-    });
-    
-    function startCamera() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showToast('Votre navigateur ne supporte pas la caméra', 'danger');
-            return;
-        }
-        
-        navigator.mediaDevices.getUserMedia({ 
-            video: { 
+        var constraints = {
+            video: {
                 facingMode: 'environment',
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
-            },
-            audio: false 
-        })
+            }
+        };
+        
+        return navigator.mediaDevices.getUserMedia(constraints)
         .then(function(stream) {
             cameraStream = stream;
             var video = document.getElementById('camera-video');
             video.srcObject = stream;
-            video.play();
-            console.log('Caméra démarrée');
+            console.log('Caméra initialisée');
+            return true;
         })
         .catch(function(err) {
             console.error('Erreur caméra:', err);
-            showToast('Impossible d\'accéder à la caméra: ' + err.message, 'danger');
+            // Essayer avec la caméra frontale si l'arrière échoue
+            return navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                cameraStream = stream;
+                var video = document.getElementById('camera-video');
+                video.srcObject = stream;
+                console.log('Caméra frontale initialisée');
+                return true;
+            })
+            .catch(function(err2) {
+                console.error('Erreur caméra frontale:', err2);
+                showToast('Accès caméra refusé', 'danger');
+                return false;
+            });
         });
     }
-    
+
     function stopCamera() {
         if (cameraStream) {
-            cameraStream.getTracks().forEach(function(track) { 
-                track.stop(); 
+            cameraStream.getTracks().forEach(function(track) {
+                track.stop();
             });
             cameraStream = null;
+            console.log('Caméra arrêtée');
         }
         var video = document.getElementById('camera-video');
         if (video) {
             video.srcObject = null;
         }
-        console.log('Caméra arrêtée');
     }
-    
-    $('#btn-take-photo').on('click', function() {
+
+    function takePhoto() {
         var video = document.getElementById('camera-video');
         var canvas = document.getElementById('camera-canvas');
         
-        if (!video || !video.videoWidth) {
-            showToast('La caméra n\'est pas prête', 'warning');
+        if (!video || !canvas) {
+            showToast('Erreur: éléments non trouvés', 'danger');
             return;
         }
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
         
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
         
-        var imageData = canvas.toDataURL('image/jpeg', 0.8);
+        // Utiliser les dimensions réelles de la vidéo
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
         
-        // Fermer le modal
-        var modalEl = document.getElementById('cameraModal');
-        var modal = bootstrap.Modal.getInstance(modalEl);
+        console.log('Capture photo:', canvas.width, 'x', canvas.height);
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        var imageData = canvas.toDataURL('image/jpeg', 0.85);
+        console.log('Photo capturée, taille:', imageData.length);
+        
+        stopCamera();
+        
+        var modal = bootstrap.Modal.getInstance(document.getElementById('cameraModal'));
         if (modal) modal.hide();
         
-        // Envoyer l'image
-        showToast('Envoi de la photo...', 'info');
+        // Envoyer directement la photo
         envoyerImage(imageData);
-    });
-    
-    // ==========================================
-    // INVITATION (Salons privés)
-    // ==========================================
-    
-    $('#btn-invite-confirm').on('click', function() {
-        var inviteUsername = $('#invite-username').val().trim();
-        if (!inviteUsername) {
-            showToast('Entrez un nom d\'utilisateur', 'warning');
-            return;
-        }
+    }
+
+    function startPolling() {
+        refreshInterval = setInterval(chargerMessages, 2000);
+    }
+
+    // ==================
+    // Event Listeners
+    // ==================
+
+    // Message form
+    messageForm.on('submit', function(e) {
+        e.preventDefault();
         
-        $.ajax({
-            url: '/api/salon/' + salonId + '/inviter/',
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
-            contentType: 'application/json',
-            data: JSON.stringify({ username: inviteUsername }),
-            success: function(res) {
-                if (res.success) {
-                    showToast(res.message, 'success');
-                    $('#invite-username').val('');
-                    var modalEl = document.getElementById('inviteModal');
-                    var modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                    setTimeout(function() { location.reload(); }, 1000);
-                }
-            },
-            error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
-            }
-        });
-    });
-    
-    // Permettre d'appuyer sur Entrée pour inviter
-    $('#invite-username').on('keypress', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-            $('#btn-invite-confirm').click();
+        if (selectedImageData) {
+            envoyerImage(selectedImageData);
+        } else {
+            var contenu = messageInput.val().trim();
+            if (contenu) envoyerMessage(contenu);
         }
     });
-    
-    // ==========================================
-    // MODÉRATION
-    // ==========================================
-    
-    // Changer le rôle
+
+    // Emojis
+    emojiBtn.on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        emojiPicker.toggleClass('show');
+    });
+
+    $(document).on('click', '.emoji-item', function() {
+        messageInput.val(messageInput.val() + $(this).data('emoji'));
+        emojiPicker.removeClass('show');
+        messageInput.focus();
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#emoji-picker, #emoji-btn').length) {
+            emojiPicker.removeClass('show');
+        }
+    });
+
+    // Voice
+    voiceBtn.on('click', function() {
+        if (!mediaRecorder) {
+            initAudio().then(function(ok) {
+                if (ok) {
+                    var modal = new bootstrap.Modal(document.getElementById('voiceModal'));
+                    modal.show();
+                }
+            });
+        } else {
+            var modal = new bootstrap.Modal(document.getElementById('voiceModal'));
+            modal.show();
+        }
+    });
+
+    $(document).on('click', '#btn-start-recording', startRecording);
+    $(document).on('click', '#btn-stop-recording', stopRecording);
+    $(document).on('click', '#btn-cancel-recording', function() {
+        cancelRecording();
+    });
+
+    $('#voiceModal').on('hidden.bs.modal', function() {
+        if (isRecording) cancelRecording();
+    });
+
+    // Image - Bouton sélection fichier
+    imageBtn.on('click', function(e) {
+        e.preventDefault();
+        console.log('Clic sur bouton image');
+        imageInput.trigger('click');
+    });
+
+    // Image - Changement de fichier
+    imageInput.on('change', function(e) {
+        console.log('Fichier sélectionné');
+        var file = this.files[0];
+        if (file) {
+            handleImageSelect(file);
+        }
+    });
+
+    // Camera - Ouverture modal
+    cameraBtn.on('click', function(e) {
+        e.preventDefault();
+        console.log('Clic sur bouton caméra');
+        
+        var modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        modal.show();
+        
+        // Initialiser la caméra après l'ouverture du modal
+        setTimeout(function() {
+            initCamera();
+        }, 300);
+    });
+
+    // Camera - Prendre photo
+    $(document).on('click', '#btn-take-photo', function(e) {
+        e.preventDefault();
+        console.log('Clic sur capturer');
+        takePhoto();
+    });
+
+    // Camera - Fermeture modal
+    $('#cameraModal').on('hidden.bs.modal', function() {
+        console.log('Modal caméra fermé');
+        stopCamera();
+    });
+
+    // Audio playback
+    $(document).on('click', '.btn-play-audio', function(e) {
+        e.preventDefault();
+        playAudio($(this));
+    });
+
+    // Delete message
+    $(document).on('click', '.btn-delete-msg', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var msgId = $(this).data('msg-id');
+        if (msgId) supprimerMessage(msgId);
+    });
+
+    // Moderation
     $(document).on('click', '.btn-role', function(e) {
         e.preventDefault();
-        var targetUserId = $(this).data('user-id');
+        var uid = $(this).data('user-id');
         var role = $(this).data('role');
-        
         $.ajax({
-            url: '/api/salon/' + salonId + '/membre/' + targetUserId + '/role/',
+            url: '/api/salon/' + salonId + '/membre/' + uid + '/role/',
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
             contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
             data: JSON.stringify({ role: role }),
             success: function(res) {
                 if (res.success) {
@@ -597,71 +715,53 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
+                showToast(xhr.responseJSON ? xhr.responseJSON.error : 'Erreur', 'danger');
             }
         });
     });
-    
-    // Bannir
+
     $(document).on('click', '.btn-ban', function(e) {
         e.preventDefault();
-        var targetUserId = $(this).data('user-id');
-        
-        if (!confirm('Bannir ce membre ?')) return;
-        
+        var uid = $(this).data('user-id');
         $.ajax({
-            url: '/api/salon/' + salonId + '/membre/' + targetUserId + '/bannir/',
+            url: '/api/salon/' + salonId + '/membre/' + uid + '/bannir/',
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
             contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
             data: JSON.stringify({ action: 'ban' }),
             success: function(res) {
                 if (res.success) {
                     showToast(res.message, 'success');
                     setTimeout(function() { location.reload(); }, 1000);
                 }
-            },
-            error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
             }
         });
     });
-    
-    // Débannir
+
     $(document).on('click', '.btn-unban', function(e) {
         e.preventDefault();
-        var targetUserId = $(this).data('user-id');
-        
+        var uid = $(this).data('user-id');
         $.ajax({
-            url: '/api/salon/' + salonId + '/membre/' + targetUserId + '/bannir/',
+            url: '/api/salon/' + salonId + '/membre/' + uid + '/bannir/',
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
             contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
             data: JSON.stringify({ action: 'unban' }),
             success: function(res) {
                 if (res.success) {
                     showToast(res.message, 'success');
                     setTimeout(function() { location.reload(); }, 1000);
                 }
-            },
-            error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
             }
         });
     });
-    
-    // Expulser
+
     $(document).on('click', '.btn-kick', function(e) {
         e.preventDefault();
-        var targetUserId = $(this).data('user-id');
-        
         if (!confirm('Expulser ce membre ?')) return;
-        
+        var uid = $(this).data('user-id');
         $.ajax({
-            url: '/api/salon/' + salonId + '/membre/' + targetUserId + '/expulser/',
+            url: '/api/salon/' + salonId + '/membre/' + uid + '/expulser/',
             method: 'POST',
             headers: { 'X-CSRFToken': csrfToken },
             success: function(res) {
@@ -669,58 +769,85 @@ $(document).ready(function() {
                     showToast(res.message, 'success');
                     setTimeout(function() { location.reload(); }, 1000);
                 }
-            },
-            error: function(xhr) {
-                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur';
-                showToast(error, 'danger');
             }
         });
     });
-    
-    // ==========================================
-    // UTILITAIRES
-    // ==========================================
-    
-    function showToast(message, type) {
-        type = type || 'info';
-        var bgClass = 'bg-' + type;
-        
-        var html = '<div class="toast align-items-center text-white ' + bgClass + ' border-0" role="alert">' +
-            '<div class="d-flex">' +
-            '<div class="toast-body">' + escapeHtml(message) + '</div>' +
-            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
-            '</div></div>';
-        
-        var $toast = $(html);
-        $('#toast-container').append($toast);
-        
-        var toast = new bootstrap.Toast($toast[0], { delay: 3000 });
-        toast.show();
-        
-        $toast.on('hidden.bs.toast', function() {
-            $(this).remove();
+
+    $('#btn-invite-confirm').on('click', function() {
+        var name = $('#invite-username').val().trim();
+        if (!name) { showToast('Entrez un nom', 'warning'); return; }
+        $.ajax({
+            url: '/api/salon/' + salonId + '/inviter/',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken },
+            data: JSON.stringify({ username: name }),
+            success: function(res) {
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    $('#invite-username').val('');
+                    bootstrap.Modal.getInstance(document.getElementById('inviteModal')).hide();
+                    setTimeout(function() { location.reload(); }, 1000);
+                }
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON ? xhr.responseJSON.error : 'Erreur', 'danger');
+            }
         });
-    }
-    
-    // Nettoyage à la fermeture
+    });
+
+    // Drag & Drop images
+    chatMessages.on('dragover', function(e) {
+        e.preventDefault();
+        $(this).addClass('drag-over');
+    });
+
+    chatMessages.on('dragleave', function(e) {
+        e.preventDefault();
+        $(this).removeClass('drag-over');
+    });
+
+    chatMessages.on('drop', function(e) {
+        e.preventDefault();
+        $(this).removeClass('drag-over');
+        
+        var files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            handleImageSelect(files[0]);
+        }
+    });
+
+    // Paste images
+    $(document).on('paste', function(e) {
+        var items = e.originalEvent.clipboardData.items;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                var file = items[i].getAsFile();
+                handleImageSelect(file);
+                break;
+            }
+        }
+    });
+
+    // Cleanup
     $(window).on('beforeunload', function() {
         clearInterval(refreshInterval);
-        cancelRecording();
+        if (isRecording) cancelRecording();
+        if (audioStream) {
+            audioStream.getTracks().forEach(function(track) { track.stop(); });
+        }
         stopCamera();
     });
-    
-    // ==========================================
-    // DÉMARRAGE
-    // ==========================================
-    
-    init();
 });
 
-// ==========================================
-// FONCTIONS GLOBALES
-// ==========================================
-
+// Fonctions globales pour les appels depuis le HTML
 function openImageModal(src) {
     $('#modal-image').attr('src', src);
     $('#image-modal').addClass('show');
+}
+
+function removeImagePreview() {
+    $('#image-preview-container').css('display', 'none');
+    $('#image-preview').attr('src', '');
+    $('#image-input').val('');
 }
