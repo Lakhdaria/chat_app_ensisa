@@ -19,6 +19,7 @@ $(document).ready(function() {
     var username = chatMessages.data('username');
     var isModo = chatMessages.data('is-modo') == true || chatMessages.data('is-modo') == 'True';
     var isAdmin = chatMessages.data('is-admin') == true || chatMessages.data('is-admin') == 'True';
+    var isSuperuser = chatMessages.data('is-superuser') == true || chatMessages.data('is-superuser') == 'True';
     var csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
     
     var lastMessageId = 0;
@@ -49,7 +50,7 @@ $(document).ready(function() {
         scrollToBottom();
         startPolling();
         messageInput.focus();
-        console.log('Chat initialisé - Admin:', isAdmin, '- Modo:', isModo);
+        console.log('Chat initialisé - Admin:', isAdmin, '- Modo:', isModo, '- Superuser:', isSuperuser);
     }
 
     function initLastMessageId() {
@@ -113,7 +114,8 @@ $(document).ready(function() {
         
         $('#no-messages').remove();
         
-        var canDelete = isOwn || isModo || isAdmin;
+        // Superuser peut tout supprimer
+        var canDelete = isOwn || isModo || isAdmin || isSuperuser;
         var deleteBtn = '';
         if (canDelete && !isTemp) {
             deleteBtn = '<button class="btn btn-link btn-sm text-danger p-0 ms-1 btn-delete-msg" data-msg-id="' + msg.id + '"><i class="bi bi-trash"></i></button>';

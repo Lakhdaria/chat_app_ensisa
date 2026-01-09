@@ -84,10 +84,17 @@ def home(request):
     # Salons masqués
     salons_masques = Salon.objects.filter(id__in=salons_masques_ids)
     
+    # Pour le super admin : tous les salons
+    tous_salons = None
+    if request.user.is_superuser:
+        tous_salons = Salon.objects.all().select_related('createur')
+    
     context = {
         'salons_publics': salons_publics,
         'mes_salons': mes_salons,
         'salons_masques': salons_masques,
+        'tous_salons': tous_salons,
+        'is_superuser': request.user.is_superuser,
     }
     return render(request, 'chat/home.html', context)
 
@@ -123,7 +130,8 @@ def salon(request, salon_id):
     
     membership = Membership.objects.filter(user=request.user, salon=salon).first()
     
-    if salon.est_prive and not membership:
+    # Superuser peut accéder à tous les salons
+    if salon.est_prive and not membership and not request.user.is_superuser:
         messages.error(request, "Vous n'avez pas accès à ce salon privé.")
         return redirect('home')
     
@@ -134,15 +142,18 @@ def salon(request, salon_id):
             role='membre'
         )
     
-    if membership and membership.est_banni:
+    # Superuser ne peut pas être banni
+    if membership and membership.est_banni and not request.user.is_superuser:
         messages.error(request, "Vous avez été banni de ce salon.")
         return redirect('home')
     
     messages_salon = salon.messages.filter(est_modere=False).select_related('auteur')
     membres = Membership.objects.filter(salon=salon).select_related('user')
     
-    is_admin = membership and membership.role == 'admin'
-    is_modo = membership and membership.role in ['admin', 'moderateur']
+    # Superuser a tous les droits
+    is_superuser = request.user.is_superuser
+    is_admin = (membership and membership.role == 'admin') or is_superuser
+    is_modo = (membership and membership.role in ['admin', 'moderateur']) or is_superuser
     is_createur = salon.createur == request.user
     
     context = {
@@ -153,6 +164,7 @@ def salon(request, salon_id):
         'is_admin': is_admin,
         'is_modo': is_modo,
         'is_createur': is_createur,
+        'is_superuser': is_superuser,
     }
     return render(request, 'chat/salon.html', context)
 
@@ -452,10 +464,12 @@ def supprimer_message(request, salon_id, message_id):
         
         membership = Membership.objects.filter(user=request.user, salon=salon).first()
         
+        # Superuser peut tout supprimer
+        is_superuser = request.user.is_superuser
         is_modo = membership and membership.role in ['admin', 'moderateur']
         is_auteur = message.auteur == request.user
         
-        if not (is_modo or is_auteur):
+        if not (is_modo or is_auteur or is_superuser):
             return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
         
         # Supprimer les fichiers associés
@@ -493,14 +507,18 @@ def changer_role(request, salon_id, user_id):
         target_user = get_object_or_404(User, id=user_id)
         
         membership = Membership.objects.filter(user=request.user, salon=salon).first()
-        if not membership or membership.role != 'admin':
+        is_superuser = request.user.is_superuser
+        
+        # Superuser peut tout faire, sinon il faut être admin du salon
+        if not is_superuser and (not membership or membership.role != 'admin'):
             return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
         
         target_membership = Membership.objects.filter(user=target_user, salon=salon).first()
         if not target_membership:
             return JsonResponse({'success': False, 'error': 'Utilisateur non membre'}, status=404)
         
-        if target_user == salon.createur:
+        # Seul le superuser peut modifier le rôle du créateur
+        if target_user == salon.createur and not is_superuser:
             return JsonResponse({'success': False, 'error': 'Impossible de modifier le créateur'}, status=403)
         
         data = json.loads(request.body)
@@ -533,17 +551,22 @@ def bannir_membre(request, salon_id, user_id):
         target_user = get_object_or_404(User, id=user_id)
         
         membership = Membership.objects.filter(user=request.user, salon=salon).first()
-        if not membership or membership.role not in ['admin', 'moderateur']:
+        is_superuser = request.user.is_superuser
+        
+        # Superuser peut tout faire
+        if not is_superuser and (not membership or membership.role not in ['admin', 'moderateur']):
             return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
         
         target_membership = Membership.objects.filter(user=target_user, salon=salon).first()
         if not target_membership:
             return JsonResponse({'success': False, 'error': 'Utilisateur non membre'}, status=404)
         
-        if target_user == salon.createur:
+        # Seul le superuser peut bannir le créateur
+        if target_user == salon.createur and not is_superuser:
             return JsonResponse({'success': False, 'error': 'Impossible de bannir le créateur'}, status=403)
         
-        if membership.role == 'moderateur' and target_membership.role == 'admin':
+        # Modérateur ne peut pas bannir un admin (sauf superuser)
+        if not is_superuser and membership and membership.role == 'moderateur' and target_membership.role == 'admin':
             return JsonResponse({'success': False, 'error': 'Impossible de bannir un admin'}, status=403)
         
         data = json.loads(request.body)
@@ -627,14 +650,18 @@ def expulser_membre(request, salon_id, user_id):
         target_user = get_object_or_404(User, id=user_id)
         
         membership = Membership.objects.filter(user=request.user, salon=salon).first()
-        if not membership or membership.role != 'admin':
+        is_superuser = request.user.is_superuser
+        
+        # Superuser peut tout faire
+        if not is_superuser and (not membership or membership.role != 'admin'):
             return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
         
         target_membership = Membership.objects.filter(user=target_user, salon=salon).first()
         if not target_membership:
             return JsonResponse({'success': False, 'error': 'Utilisateur non membre'}, status=404)
         
-        if target_user == salon.createur:
+        # Seul le superuser peut expulser le créateur
+        if target_user == salon.createur and not is_superuser:
             return JsonResponse({'success': False, 'error': 'Impossible d\'expulser le créateur'}, status=403)
         
         target_membership.delete()
@@ -732,15 +759,15 @@ def afficher_salon(request, salon_id):
 @login_required
 @require_POST
 def supprimer_salon(request, salon_id):
-    """Supprimer un salon (créateur uniquement)"""
+    """Supprimer un salon (créateur ou superuser)"""
     try:
         salon = get_object_or_404(Salon, id=salon_id)
         
-        # Vérifier que l'utilisateur est le créateur
-        if salon.createur != request.user:
+        # Superuser peut supprimer n'importe quel salon
+        if salon.createur != request.user and not request.user.is_superuser:
             return JsonResponse({
                 'success': False, 
-                'error': 'Seul le créateur peut supprimer ce salon'
+                'error': 'Seul le créateur ou un administrateur peut supprimer ce salon'
             }, status=403)
         
         nom_salon = salon.nom
