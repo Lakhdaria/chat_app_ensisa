@@ -1,0 +1,798 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Accueil - Chat App{% endblock %}
+
+{% block extra_css %}
+<style>
+    .home-wrapper {
+        min-height: calc(100vh - 76px);
+        padding: 2rem 0;
+    }
+    
+    .hero-section {
+        text-align: center;
+        padding: 2rem 1rem 3rem;
+    }
+    
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .hero-title i {
+        color: #667eea;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn-create {
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: #fff;
+    }
+    
+    /* Onglets */
+    .tabs-container {
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 2px 20px var(--shadow);
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+    }
+    
+    .nav-tabs-custom {
+        border: none;
+        background: var(--bg-tertiary);
+        padding: 0.5rem;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    
+    .nav-tabs-custom .nav-link {
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: transparent;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+    
+    .nav-tabs-custom .nav-link:hover {
+        color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .nav-tabs-custom .nav-link.active {
+        background: var(--card-bg);
+        color: #667eea;
+        box-shadow: 0 2px 10px var(--shadow);
+    }
+    
+    .tab-badge {
+        background: #667eea;
+        color: #fff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+    
+    .tab-content-wrapper {
+        padding: 1.5rem;
+    }
+    
+    /* ========================================
+       CARDS SALON - CORRIGÉ
+       ======================================== */
+    
+    .salon-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        transition: all 0.3s ease;
+        height: 100%;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .salon-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+        transform: translateY(-3px);
+    }
+    
+    /* En-tête avec icône, badge ET menu */
+    .salon-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        gap: 0.75rem;
+    }
+    
+    .salon-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+    
+    .salon-icon.private {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    /* Conteneur pour badge + menu (à droite) */
+    .salon-header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .badge-private {
+        background: rgba(245, 87, 108, 0.15);
+        color: #f5576c;
+        padding: 0.3rem 0.65rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        border: 1px solid rgba(245, 87, 108, 0.3);
+        white-space: nowrap;
+    }
+    
+    /* Menu actions - plus de chevauchement */
+    .salon-menu {
+        position: relative;
+    }
+    
+    .salon-menu .btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    .salon-menu .btn:hover {
+        background: var(--hover-bg);
+        color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .salon-menu .dropdown-menu {
+        min-width: 160px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        margin-top: 0.5rem;
+    }
+    
+    .salon-menu .dropdown-item {
+        font-size: 0.85rem;
+        padding: 0.6rem 1rem;
+        color: var(--text-primary);
+        transition: all 0.15s ease;
+    }
+    
+    .salon-menu .dropdown-item:hover {
+        background: var(--hover-bg);
+    }
+    
+    .salon-menu .dropdown-item i {
+        width: 18px;
+        margin-right: 0.5rem;
+    }
+    
+    .salon-menu .dropdown-item.text-danger {
+        color: #ff6b6b;
+    }
+    
+    .salon-menu .dropdown-item.text-danger:hover {
+        background: rgba(255, 107, 107, 0.1);
+    }
+    
+    .salon-menu .dropdown-divider {
+        border-color: var(--border-color);
+        margin: 0.25rem 0;
+    }
+    
+    /* Contenu du salon */
+    .salon-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .salon-description {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+    
+    .salon-meta {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+    
+    .salon-meta i {
+        color: #667eea;
+        margin-right: 0.25rem;
+    }
+    
+    /* Boutons salon */
+    .salon-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+    
+    .btn-salon {
+        flex: 1;
+        padding: 0.6rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .btn-salon-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+    }
+    
+    .btn-salon-primary:hover {
+        box-shadow: 0 3px 15px rgba(102, 126, 234, 0.4);
+        color: #fff;
+    }
+    
+    .btn-salon-outline {
+        background: transparent;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+    
+    .btn-salon-outline:hover {
+        background: #667eea;
+        color: #fff;
+    }
+    
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Toast */
+    #toast-container {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 1060;
+    }
+    
+    /* Modal */
+    .modal-content {
+        border-radius: 16px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--border-color);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 1.8rem;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .salon-header-right {
+            flex-direction: column-reverse;
+            align-items: flex-end;
+            gap: 0.35rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toast-container"></div>
+
+<div class="home-wrapper">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">
+            <i class="bi bi-chat-dots-fill"></i> Chat App
+        </h1>
+        <p class="hero-subtitle">
+            Discutez en temps réel avec vos amis et collègues
+        </p>
+        <a href="{% url 'creer_salon' %}" class="btn btn-create">
+            <i class="bi bi-plus-lg me-2"></i>Créer un salon
+        </a>
+    </div>
+    
+    <!-- Onglets -->
+    <div class="container">
+        <div class="tabs-container">
+            <ul class="nav nav-tabs nav-tabs-custom" id="salonsTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="mes-salons-tab" data-bs-toggle="tab" data-bs-target="#mes-salons" type="button">
+                        <i class="bi bi-bookmark-star-fill me-1"></i>Mes Salons
+                        <span class="tab-badge">{{ mes_salons.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="salons-publics-tab" data-bs-toggle="tab" data-bs-target="#salons-publics" type="button">
+                        <i class="bi bi-globe2 me-1"></i>Salons Publics
+                        <span class="tab-badge">{{ salons_publics.count }}</span>
+                    </button>
+                </li>
+                {% if salons_masques %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="salons-masques-tab" data-bs-toggle="tab" data-bs-target="#salons-masques" type="button">
+                        <i class="bi bi-eye-slash me-1"></i>Masqués
+                        <span class="tab-badge">{{ salons_masques.count }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if is_superuser %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-panel" type="button">
+                        <i class="bi bi-shield-lock-fill me-1"></i>Administration
+                        <span class="tab-badge" style="background: #dc3545;">{{ tous_salons.count }}</span>
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+            
+            <div class="tab-content tab-content-wrapper" id="salonsTabContent">
+                <!-- Mes Salons -->
+                <div class="tab-pane fade show active" id="mes-salons" role="tabpanel">
+                    {% if mes_salons %}
+                        <div class="row g-3">
+                            {% for salon in mes_salons %}
+                            <div class="col-lg-4 col-md-6" id="salon-card-{{ salon.id }}">
+                                <div class="salon-card">
+                                    <!-- NOUVEAU: En-tête avec icône, badge ET menu sur la même ligne -->
+                                    <div class="salon-header">
+                                        <div class="salon-icon {% if salon.est_prive %}private{% endif %}">
+                                            {% if salon.est_prive %}
+                                                <i class="bi bi-lock-fill"></i>
+                                            {% else %}
+                                                <i class="bi bi-chat-dots-fill"></i>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="salon-header-right">
+                                            {% if salon.est_prive %}
+                                                <span class="badge-private">
+                                                    <i class="bi bi-lock-fill me-1"></i>Privé
+                                                </span>
+                                            {% endif %}
+                                            
+                                            <div class="salon-menu dropdown">
+                                                <button class="btn" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <a class="dropdown-item btn-masquer" href="#" data-salon-id="{{ salon.id }}">
+                                                            <i class="bi bi-eye-slash"></i>Masquer
+                                                        </a>
+                                                    </li>
+                                                    {% if salon.createur == request.user %}
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger btn-supprimer" href="#" data-salon-id="{{ salon.id }}" data-salon-nom="{{ salon.nom }}">
+                                                            <i class="bi bi-trash"></i>Supprimer
+                                                        </a>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 class="salon-name">{{ salon.nom }}</h3>
+                                    <p class="salon-description">
+                                        {{ salon.description|default:"Aucune description"|truncatewords:12 }}
+                                    </p>
+                                    <div class="salon-meta">
+                                        <span><i class="bi bi-person"></i>{{ salon.createur.username }}</span>
+                                        <span><i class="bi bi-calendar3"></i>{{ salon.date_creation|date:"d/m/Y" }}</span>
+                                    </div>
+                                    <div class="salon-actions">
+                                        <a href="{% url 'salon' salon.id %}" class="btn btn-salon btn-salon-primary">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i>Entrer
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <p>Vous n'avez rejoint aucun salon</p>
+                            <small>Rejoignez un salon public ou créez le vôtre !</small>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Salons Publics -->
+                <div class="tab-pane fade" id="salons-publics" role="tabpanel">
+                    {% if salons_publics %}
+                        <div class="row g-3">
+                            {% for salon in salons_publics %}
+                            <div class="col-lg-4 col-md-6" id="salon-card-{{ salon.id }}">
+                                <div class="salon-card">
+                                    <!-- En-tête pour salons publics -->
+                                    <div class="salon-header">
+                                        <div class="salon-icon">
+                                            <i class="bi bi-chat-dots-fill"></i>
+                                        </div>
+                                        
+                                        <div class="salon-header-right">
+                                            <div class="salon-menu dropdown">
+                                                <button class="btn" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <a class="dropdown-item btn-masquer" href="#" data-salon-id="{{ salon.id }}">
+                                                            <i class="bi bi-eye-slash"></i>Masquer
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 class="salon-name">{{ salon.nom }}</h3>
+                                    <p class="salon-description">
+                                        {{ salon.description|default:"Aucune description"|truncatewords:12 }}
+                                    </p>
+                                    <div class="salon-meta">
+                                        <span><i class="bi bi-person"></i>{{ salon.createur.username }}</span>
+                                        <span><i class="bi bi-calendar3"></i>{{ salon.date_creation|date:"d/m/Y" }}</span>
+                                    </div>
+                                    <div class="salon-actions">
+                                        <a href="{% url 'rejoindre_salon' salon.id %}" class="btn btn-salon btn-salon-outline">
+                                            <i class="bi bi-plus-circle me-1"></i>Rejoindre
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-chat-left-text"></i>
+                            <p>Aucun salon public disponible</p>
+                            <small>Soyez le premier à créer un salon !</small>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Salons Masqués -->
+                {% if salons_masques %}
+                <div class="tab-pane fade" id="salons-masques" role="tabpanel">
+                    <div class="row g-3">
+                        {% for salon in salons_masques %}
+                        <div class="col-lg-4 col-md-6" id="salon-card-{{ salon.id }}">
+                            <div class="salon-card" style="opacity: 0.7;">
+                                <div class="salon-header">
+                                    <div class="salon-icon" style="background: #999;">
+                                        <i class="bi bi-eye-slash-fill"></i>
+                                    </div>
+                                </div>
+                                <h3 class="salon-name">{{ salon.nom }}</h3>
+                                <p class="salon-description">
+                                    {{ salon.description|default:"Aucune description"|truncatewords:12 }}
+                                </p>
+                                <div class="salon-actions">
+                                    <button class="btn btn-salon btn-salon-outline btn-afficher" data-salon-id="{{ salon.id }}">
+                                        <i class="bi bi-eye me-1"></i>Réafficher
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Panneau Administration (Superuser uniquement) -->
+                {% if is_superuser %}
+                <div class="tab-pane fade" id="admin-panel" role="tabpanel">
+                    <div class="alert alert-danger mb-4">
+                        <i class="bi bi-shield-exclamation me-2"></i>
+                        <strong>Mode Administrateur</strong> - Vous avez accès à tous les salons. Utilisez ces pouvoirs avec précaution.
+                    </div>
+                    {% if tous_salons %}
+                        <div class="row g-3">
+                            {% for salon in tous_salons %}
+                            <div class="col-lg-4 col-md-6" id="admin-salon-card-{{ salon.id }}">
+                                <div class="salon-card" style="border: 2px solid #dc3545;">
+                                    <div class="salon-header">
+                                        <div class="salon-icon" style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);">
+                                            {% if salon.est_prive %}
+                                                <i class="bi bi-lock-fill"></i>
+                                            {% else %}
+                                                <i class="bi bi-chat-dots-fill"></i>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="salon-header-right">
+                                            {% if salon.est_prive %}
+                                                <span class="badge-private">
+                                                    <i class="bi bi-lock-fill me-1"></i>Privé
+                                                </span>
+                                            {% endif %}
+                                            
+                                            <div class="salon-menu dropdown">
+                                                <button class="btn" data-bs-toggle="dropdown" style="border-color: #dc3545;">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li>
+                                                        <a class="dropdown-item" href="{% url 'salon' salon.id %}">
+                                                            <i class="bi bi-box-arrow-in-right"></i>Entrer (Admin)
+                                                        </a>
+                                                    </li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger btn-supprimer-admin" href="#" data-salon-id="{{ salon.id }}" data-salon-nom="{{ salon.nom }}">
+                                                            <i class="bi bi-trash"></i>Supprimer définitivement
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 class="salon-name">{{ salon.nom }}</h3>
+                                    <p class="salon-description">
+                                        {{ salon.description|default:"Aucune description"|truncatewords:12 }}
+                                    </p>
+                                    <div class="salon-meta">
+                                        <span><i class="bi bi-person"></i>{{ salon.createur.username }}</span>
+                                        <span><i class="bi bi-calendar3"></i>{{ salon.date_creation|date:"d/m/Y" }}</span>
+                                    </div>
+                                    <div class="salon-actions">
+                                        <a href="{% url 'salon' salon.id %}" class="btn btn-salon" style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%); color: #fff; border: none;">
+                                            <i class="bi bi-shield-lock me-1"></i>Gérer
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <p>Aucun salon dans le système</p>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                    Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le salon <strong id="delete-salon-name"></strong> ?</p>
+                <p class="text-muted small mb-0">Cette action est irréversible. Tous les messages et fichiers seront supprimés définitivement.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    <i class="bi bi-trash me-2"></i>Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    var csrfToken = '{{ csrf_token }}';
+    var salonToDelete = null;
+    
+    function showToast(message, type) {
+        type = type || 'info';
+        var html = '<div class="toast align-items-center text-white bg-' + type + ' border-0" role="alert">' +
+            '<div class="d-flex"><div class="toast-body">' + message + '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div></div>';
+        var el = $(html);
+        $('#toast-container').append(el);
+        var toast = new bootstrap.Toast(el[0]);
+        toast.show();
+        el.on('hidden.bs.toast', function() { $(this).remove(); });
+    }
+    
+    // Masquer un salon
+    $(document).on('click', '.btn-masquer', function(e) {
+        e.preventDefault();
+        var salonId = $(this).data('salon-id');
+        
+        $.ajax({
+            url: '/api/salon/' + salonId + '/masquer/',
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            success: function(res) {
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    $('#salon-card-' + salonId).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                } else {
+                    showToast(res.error || 'Erreur', 'danger');
+                }
+            },
+            error: function() {
+                showToast('Erreur lors du masquage', 'danger');
+            }
+        });
+    });
+    
+    // Afficher un salon masqué
+    $(document).on('click', '.btn-afficher', function(e) {
+        e.preventDefault();
+        var salonId = $(this).data('salon-id');
+        
+        $.ajax({
+            url: '/api/salon/' + salonId + '/afficher/',
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            success: function(res) {
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 500);
+                } else {
+                    showToast(res.error || 'Erreur', 'danger');
+                }
+            },
+            error: function() {
+                showToast('Erreur', 'danger');
+            }
+        });
+    });
+    
+    // Ouvrir modal de suppression
+    $(document).on('click', '.btn-supprimer', function(e) {
+        e.preventDefault();
+        salonToDelete = $(this).data('salon-id');
+        var salonNom = $(this).data('salon-nom');
+        
+        $('#delete-salon-name').text(salonNom);
+        var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    });
+    
+    // Ouvrir modal de suppression (Admin)
+    $(document).on('click', '.btn-supprimer-admin', function(e) {
+        e.preventDefault();
+        salonToDelete = $(this).data('salon-id');
+        var salonNom = $(this).data('salon-nom');
+        
+        $('#delete-salon-name').text(salonNom + ' (Suppression Admin)');
+        var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    });
+    
+    // Confirmer suppression
+    $('#confirm-delete-btn').on('click', function() {
+        if (!salonToDelete) return;
+        
+        var btn = $(this);
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Suppression...');
+        
+        $.ajax({
+            url: '/api/salon/' + salonToDelete + '/supprimer/',
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            success: function(res) {
+                if (res.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                    showToast(res.message, 'success');
+                    // Supprimer les deux types de cards (normal et admin)
+                    $('#salon-card-' + salonToDelete + ', #admin-salon-card-' + salonToDelete).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                } else {
+                    showToast(res.error || 'Erreur', 'danger');
+                }
+            },
+            error: function(xhr) {
+                var err = 'Erreur lors de la suppression';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    err = xhr.responseJSON.error;
+                }
+                showToast(err, 'danger');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="bi bi-trash me-2"></i>Supprimer');
+                salonToDelete = null;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

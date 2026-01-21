@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Créer un salon{% endblock %}
+
+{% block extra_css %}
+<style>
+.create-wrapper{
+    min-height:calc(100vh - 120px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:2rem 1rem;
+    background:var(--bg-primary,#0f1419)
+}
+.create-card{
+    background:var(--card-bg,#1e2536);
+    border-radius:16px;
+    box-shadow:0 4px 30px rgba(0,0,0,.3);
+    border:1px solid var(--border-color,#2f3845);
+    width:100%;
+    max-width:500px;
+    overflow:hidden
+}
+.create-header{
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    padding:2rem;
+    text-align:center;
+    color:#fff;
+    position:relative;
+    overflow:hidden
+}
+.create-header::before{
+    content:'';
+    position:absolute;
+    top:-50%;
+    left:-50%;
+    width:200%;
+    height:200%;
+    background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 60%);
+    animation:shimmer 3s ease-in-out infinite
+}
+@keyframes shimmer{
+    0%,100%{transform:translate(0,0)}
+    50%{transform:translate(10%,10%)}
+}
+.create-header i{font-size:3rem;margin-bottom:1rem;position:relative;z-index:1;text-shadow:0 4px 15px rgba(0,0,0,.3)}
+.create-header h2{font-size:1.5rem;font-weight:700;margin:0;position:relative;z-index:1}
+.create-header p{color:rgba(255,255,255,.85);margin:.5rem 0 0;font-size:.95rem;position:relative;z-index:1}
+.create-body{padding:2rem}
+.form-group{margin-bottom:1.5rem}
+.form-label{font-weight:600;color:#667eea;margin-bottom:.5rem;font-size:.9rem;display:flex;align-items:center;gap:.5rem}
+.form-control{
+    border:2px solid var(--border-color,#2f3845);
+    border-radius:12px;
+    padding:.85rem 1rem;
+    font-size:.95rem;
+    transition:all .2s;
+    background:var(--bg-tertiary,#252d3d);
+    color:var(--text-primary,#e7e9ea)
+}
+.form-control::placeholder{color:var(--text-muted,#6e7681)}
+.form-control:hover{border-color:#3f4a5a;background:var(--hover-bg,#2a3347)}
+.form-control:focus{border-color:#667eea;box-shadow:0 0 0 4px rgba(102,126,234,.15);background:var(--hover-bg,#2a3347);color:var(--text-primary,#e7e9ea);outline:none}
+textarea.form-control{min-height:100px;resize:vertical}
+.form-check-custom{
+    padding:1.25rem;
+    background:var(--bg-tertiary,#252d3d);
+    border:2px solid var(--border-color,#2f3845);
+    border-radius:12px;
+    transition:all .2s
+}
+.form-check-custom:hover{border-color:#3f4a5a}
+.form-check-custom.active{border-color:#667eea;background:rgba(102,126,234,.1)}
+.form-check{display:flex;align-items:center;gap:.75rem;margin:0;padding:0}
+.form-check-input{
+    width:22px;
+    height:22px;
+    margin:0;
+    border:2px solid var(--border-color,#2f3845);
+    border-radius:6px;
+    background:var(--bg-primary,#1a1f2e);
+    cursor:pointer;
+    transition:all .2s
+}
+.form-check-input:checked{background:linear-gradient(135deg,#667eea,#764ba2);border-color:#667eea}
+.form-check-input:focus{box-shadow:0 0 0 4px rgba(102,126,234,.2)}
+.form-check-label{color:var(--text-primary,#e7e9ea);font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.5rem}
+.form-check-label i{color:#667eea}
+.form-check-description{font-size:.85rem;color:var(--text-secondary,#8b98a5);margin-left:2.25rem;margin-top:.5rem;line-height:1.5}
+.btn-create{
+    width:100%;
+    padding:.95rem;
+    border-radius:12px;
+    font-weight:600;
+    font-size:1rem;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    border:none;
+    color:#fff;
+    transition:all .3s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.5rem;
+    position:relative;
+    overflow:hidden
+}
+.btn-create::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transition:left .5s}
+.btn-create:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(102,126,234,.4);color:#fff}
+.btn-create:hover::before{left:100%}
+.btn-back{display:inline-flex;align-items:center;color:var(--text-secondary,#8b98a5);text-decoration:none;font-weight:500;margin-bottom:1.5rem;padding:.5rem 0;transition:all .2s}
+.btn-back:hover{color:#667eea;transform:translateX(-3px)}
+.error-text{color:#ff6b6b;font-size:.85rem;margin-top:.5rem;display:flex;align-items:center;gap:.35rem}
+.error-text::before{content:'\F33A';font-family:'bootstrap-icons'}
+.alert{background:rgba(220,53,69,.15);border:1px solid rgba(220,53,69,.3);color:#ff6b6b;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+@media(max-width:576px){
+    .create-wrapper{padding:1rem}
+    .create-card{border-radius:12px}
+    .create-header{padding:1.5rem}
+    .create-body{padding:1.5rem}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-wrapper">
+<div class="create-card">
+
+<div class="create-header">
+<i class="bi bi-plus-circle-fill"></i>
+<h2>Créer un salon</h2>
+<p>Démarrez une nouvelle conversation</p>
+</div>
+
+<div class="create-body">
+<a href="{% url 'home' %}" class="btn-back"><i class="bi bi-arrow-left me-2"></i>Retour</a>
+
+{% if form.non_field_errors %}
+<div class="alert">
+{% for error in form.non_field_errors %}{{ error }}{% endfor %}
+</div>
+{% endif %}
+
+<form method="post">
+{% csrf_token %}
+
+<div class="form-group">
+<label class="form-label"><i class="bi bi-chat-dots"></i> Nom du salon</label>
+<input type="text" name="nom" class="form-control" placeholder="Ex: Discussion générale" value="{{ form.nom.value|default:'' }}" required maxlength="100" autocomplete="off">
+{% if form.nom.errors %}<div class="error-text">{{ form.nom.errors.0 }}</div>{% endif %}
+</div>
+
+<div class="form-group">
+<label class="form-label"><i class="bi bi-text-left"></i> Description (optionnelle)</label>
+<textarea name="description" class="form-control" placeholder="Décrivez le sujet..." rows="3">{{ form.description.value|default:'' }}</textarea>
+</div>
+
+<div class="form-group">
+<div class="form-check-custom" id="privacySection">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" name="est_prive" id="est_prive" {% if form.est_prive.value %}checked{% endif %}>
+<label class="form-check-label" for="est_prive"><i class="bi bi-lock"></i> Salon privé</label>
+</div>
+<div class="form-check-description">Seuls les membres invités pourront y accéder</div>
+</div>
+</div>
+
+<button type="submit" class="btn btn-create"><i class="bi bi-plus-lg"></i> Créer le salon</button>
+</form>
+</div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function(){
+    var checkbox=$('#est_prive');
+    var section=$('#privacySection');
+    if(checkbox.is(':checked')){section.addClass('active')}
+    checkbox.on('change',function(){
+        if($(this).is(':checked')){section.addClass('active')}
+        else{section.removeClass('active')}
+    });
+});
+</script>
+{% endblock %}
